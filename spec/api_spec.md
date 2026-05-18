@@ -24,13 +24,14 @@
 
 ### ShapeMatcher
 
-#### `match_shapes(origin_img: np.ndarray, dummy_img: np.ndarray, config: Config) -> MatchResult`
+#### `match_shapes(origin_img: np.ndarray, dummy_img: np.ndarray, config: Config, method: str = "diff") -> MatchResult`
 形状マッチングによる差分検出を実行する（位置不変）。
 
 **引数**:
 - `origin_img`: 元データ画像
 - `dummy_img`: 比較対象画像
 - `config`: 設定パラメータ
+- `method`: 類似度計算方法 ("diff" または "matchshapes")
 
 **戻り値**: マッチング結果
 
@@ -42,12 +43,13 @@
 
 **戻り値**: Huモーメント（7次元ベクトル）
 
-#### `compare_hu_moments(hu1: np.ndarray, hu2: np.ndarray) -> float`
+#### `compare_hu_moments(hu1: np.ndarray, hu2: np.ndarray, method: str = "diff") -> float`
 2つのHuモーメントの類似度を計算する。
 
 **引数**:
 - `hu1`: Huモーメント1
 - `hu2`: Huモーメント2
+- `method`: 類似度計算方法 ("diff" または "matchshapes")
 
 **戻り値**: 類似度スコア（0.0 - 1.0）
 
