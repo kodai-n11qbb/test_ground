@@ -32,13 +32,26 @@ class ShapeMatcher:
         # 判定
         is_match = similarity >= self.config.match_threshold
         
+        # 新しい要件：視覚的な差分マスクの計算
+        h, w = origin_img.shape[:2]
+        dummy_resized = dummy_img
+        if dummy_img.shape[:2] != (h, w):
+            dummy_resized = cv2.resize(dummy_img, (w, h))
+            
+        diff = cv2.absdiff(origin_img, dummy_resized)
+        gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        _, mask = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
+        
         return MatchResult(
             similarity_score=similarity,
             is_match=is_match,
             origin_path="",
             dummy_path="",
             hu_moments_origin=hu_origin,
-            hu_moments_dummy=hu_dummy
+            hu_moments_dummy=hu_dummy,
+            diff_mask=mask,
+            origin_img=origin_img,
+            dummy_img=dummy_resized
         )
     
     def _preprocess(self, img: np.ndarray) -> np.ndarray:

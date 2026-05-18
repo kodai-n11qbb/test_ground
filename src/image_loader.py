@@ -71,6 +71,6 @@ class ImageLoader:
                     origin_path = os.path.join(origin_dir, origin_file)
                     dummy_path = os.path.join(dummy_dir, dummy_file)
                     origin, dummy = self.load_image_pair(origin_path, dummy_path)
-                    pairs.append((dummy_file, origin, dummy))
+                    pairs.append((origin_file, dummy_file, origin, dummy))
         
         return pairs

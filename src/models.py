@@ -11,3 +11,6 @@ class MatchResult:
     dummy_path: str
     hu_moments_origin: Optional[np.ndarray] = None
     hu_moments_dummy: Optional[np.ndarray] = None
+    diff_mask: Optional[np.ndarray] = None
+    origin_img: Optional[np.ndarray] = None
+    dummy_img: Optional[np.ndarray] = None

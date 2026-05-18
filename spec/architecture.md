@@ -6,6 +6,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
+│                    Web Viewer (FastAPI)                 │
+├─────────────────────────────────────────────────────────┤
 │                    Main Controller                      │
 ├─────────────────────────────────────────────────────────┤
 │  ImageLoader  │  ShapeMatcher  │  ResultExporter        │
@@ -46,6 +48,11 @@ class ResultExporter:
     def export_image(self, result: MatchResult, output_path: str) -> None
     def export_json(self, result: MatchResult, output_path: str) -> None
 ```
+
+### 4. Web Viewer (api.py)
+**責務**: 検出結果の一覧表示と可視化を行うWebインターフェースの提供
+- FastAPIによるAPIバックエンドと静的ファイル（出力画像・JSON）の配信
+- HTML/JS/CSSによるフロントエンド画面
 
 ## データモデル
 

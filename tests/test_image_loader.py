@@ -55,6 +55,7 @@ def test_load_directory(image_loader, tmp_path, create_dummy_image):
     pairs = image_loader.load_directory(origin_dir, dummy_dir)
     
     assert len(pairs) == 2
-    names = [p[0] for p in pairs]
-    assert "dummyA(ドトール)入れ替え.png" in names
-    assert "dummyB（吉野家）入れ替え.png" in names
+    origin_names = [p[0] for p in pairs]
+    dummy_names = [p[1] for p in pairs]
+    assert "fileA(ドトール).png" in origin_names
+    assert "dummyA(ドトール)入れ替え.png" in dummy_names

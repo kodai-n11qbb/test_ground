@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像差分検出 Viewer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>画像差分検出結果 Viewer</h1>
+            <p>位置不変形状マッチングと赤ハイライトによる差分可視化</p>
+        </div>
+    </header>
+    <main>
+        <div class="controls">
+            <button id="load-btn">結果を再読み込み</button>
+            <div class="filter">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="filter-match" checked>
+                    <span class="checkmark"></span>
+                    MATCH を表示
+                </label>
+                <label class="checkbox-container">
+                    <input type="checkbox" id="filter-nomatch" checked>
+                    <span class="checkmark"></span>
+                    NO MATCH を表示
+                </label>
+            </div>
+            <div class="stats" id="stats-display">
+                読み込み中...
+            </div>
+        </div>
+        <div id="results-container" class="grid"></div>
+    </main>
+    <script src="/static/app.js"></script>
+</body>
+</html>

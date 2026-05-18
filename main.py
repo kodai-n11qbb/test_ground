@@ -38,16 +38,16 @@ def main():
     
     # 各ペアを処理
     results = []
-    for name, origin, dummy in pairs:
-        print(f"Processing: {name}")
+    for origin_file, dummy_file, origin, dummy in pairs:
+        print(f"Processing: {dummy_file}")
         
         # パスを設定
         result = matcher.match_shapes(origin, dummy, method=args.method)
-        result.origin_path = f"{args.origin}/{name}"
-        result.dummy_path = f"{args.dummy}/{name}"
+        result.origin_path = f"{args.origin}/{origin_file}"
+        result.dummy_path = f"{args.dummy}/{dummy_file}"
         
         # 結果出力
-        output_name = name.replace('.', '_')
+        output_name = dummy_file.replace('.', '_')
         image_path = f"{args.output}/{output_name}_result.png"
         json_path = f"{args.output}/{output_name}_result.json"
         

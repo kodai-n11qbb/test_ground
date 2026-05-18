@@ -10,10 +10,18 @@ class ResultExporter:
     def export_image(self, result: MatchResult, output_path: str) -> None:
         """
         結果を画像ファイルとして出力する。
-        現在は簡易的に、類似度をテキストとして描画した画像を出力。
+        元画像とダミー画像をブレンドし、はみ出している（差分）箇所を赤くハイライトして出力する。
         """
-        # 黒い画像を作成
-        img = np.zeros((200, 400, 3), dtype=np.uint8)
+        if result.origin_img is not None and result.diff_mask is not None:
+            # 50/50ブレンドで全体構造を薄く見せる
+            blend = cv2.addWeighted(result.origin_img, 0.5, result.dummy_img, 0.5, 0)
+            
+            # 差分（はみ出している・欠けている）箇所を赤く塗る
+            blend[result.diff_mask > 0] = [0, 0, 255]
+            img = blend
+        else:
+            # フォールバック
+            img = np.zeros((200, 400, 3), dtype=np.uint8)
         
         # テキスト描画
         status = "MATCH" if result.is_match else "NO MATCH"
@@ -25,8 +33,8 @@ class ResultExporter:
         # ディレクトリ作成
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
-        # 保存
-        cv2.imwrite(output_path, img)
+        # 保存 (日本語パス対応のためimencodeを使用)
+        cv2.imencode(".png", img)[1].tofile(output_path)
     
     def export_json(self, result: MatchResult, output_path: str) -> None:
         """

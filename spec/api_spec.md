@@ -13,14 +13,14 @@
 
 **戻り値**: (origin_image, dummy_image) のタプル（OpenCV画像配列）
 
-#### `load_directory(origin_dir: str, dummy_dir: str) -> List[Tuple[str, np.ndarray, np.ndarray]]`
-ディレクトリ内の全画像ペアを読み込む。
+#### `load_directory(origin_dir: str, dummy_dir: str) -> List[Tuple[str, str, np.ndarray, np.ndarray]]`
+ディレクトリ内の全画像を読み込み、ファイル名に含まれる「カッコ内の文字列（キーワード）」が一致するすべての組み合わせをペアリングして読み込む。
 
 **引数**:
 - `origin_dir`: 元データディレクトリパス
 - `dummy_dir`: 比較対象ディレクトリパス
 
-**戻り値**: (name, origin_image, dummy_image) のリスト
+**戻り値**: (origin_file, dummy_file, origin_image, dummy_image) のリスト
 
 ### ShapeMatcher
 
@@ -115,4 +115,32 @@ exporter.export_json(result, "output/result.json")
 # 結果確認
 print(f"Similarity: {result.similarity_score:.3f}")
 print(f"Match: {result.is_match}")
+```
+
+## Web API仕様 (FastAPI)
+
+`api.py` にて提供されるWebビューア用のAPIエンドポイントです。
+
+### `GET /`
+差分結果を閲覧できるWebインターフェース（HTML）を返します。
+
+### `GET /api/results`
+`output/` ディレクトリ内に保存されているすべての差分検出結果（JSON）と、対応する画像パスのリストを返します。（類似度の高い順にソート済）
+
+**戻り値**:
+```json
+{
+  "results": [
+    {
+      "id": "dummy(ドトール)入れ替えズレあり_00_CLPOIET",
+      "similarity_score": 0.739,
+      "is_match": true,
+      "origin_path": "imgs/origin/POLITEC(ドトール).png",
+      "dummy_path": "imgs/dummy/dummy(ドトール)入れ替えズレあり_00_CLPOIET.jpg",
+      "hu_moments_origin": [...],
+      "hu_moments_dummy": [...],
+      "result_image": "/output/dummy(ドトール)入れ替えズレあり_00_CLPOIET_result.png"
+    }
+  ]
+}
 ```
