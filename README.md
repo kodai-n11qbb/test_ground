@@ -11,8 +11,17 @@
 
 ## インストール
 
+### pipを使用する場合
+
 ```bash
 pip install -r requirements.txt
+```
+
+### condaを使用する場合
+
+```bash
+conda env create -f environment.yml
+conda activate opencv_env
 ```
 
 ## 使用方法
