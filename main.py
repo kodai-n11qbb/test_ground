@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description='画像差分検出ツール')
     parser.add_argument('--origin', type=str, default='imgs/origin', help='元データディレクトリ')
     parser.add_argument('--dummy', type=str, default='imgs/dummy', help='比較対象ディレクトリ')
-    parser.add_argument('--threshold', type=float, default=0.73, help='マッチング閾値')
+    parser.add_argument('--threshold', type=float, help='マッチング閾値')
     parser.add_argument('--output', type=str, default='output', help='出力ディレクトリ')
     parser.add_argument('--method', type=str, default='diff', choices=['diff', 'matchshapes'], help='類似度計算方法')
     parser.add_argument('--canny1', type=float, default=50.0, help='Canny閾値1')
@@ -19,12 +19,14 @@ def main():
     args = parser.parse_args()
     
     # 設定
-    config = Config(
-        match_threshold=args.threshold,
-        output_dir=args.output,
-        canny_threshold1=args.canny1,
-        canny_threshold2=args.canny2
-    )
+    config_kwargs = {
+        'output_dir': args.output,
+        'canny_threshold1': args.canny1,
+        'canny_threshold2': args.canny2
+    }
+    if args.threshold is not None:
+        config_kwargs['match_threshold'] = args.threshold
+    config = Config(**config_kwargs)
     
     # コンポーネント初期化（Dependency Injection）
     loader = ImageLoader()

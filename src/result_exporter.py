@@ -23,13 +23,6 @@ class ResultExporter:
             # フォールバック
             img = np.zeros((200, 400, 3), dtype=np.uint8)
         
-        # テキスト描画
-        status = "MATCH" if result.is_match else "NO MATCH"
-        color = (0, 255, 0) if result.is_match else (0, 0, 255)
-        
-        cv2.putText(img, f"Status: {status}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
-        cv2.putText(img, f"Similarity: {result.similarity_score:.3f}", (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
         # ディレクトリ作成
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
