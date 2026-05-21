@@ -22,6 +22,17 @@
 
 **戻り値**: (origin_file, dummy_file, origin_image, dummy_image) のリスト
 
+### PhotoNormalizer
+
+#### `__init__(config: Config)`
+設定をコンストラクタで受け取る（Dependency Injection）。
+
+#### `needs_normalization(dummy_img: np.ndarray, origin_img: np.ndarray) -> bool`
+実写の CAD 風正規化が必要か判定する。解像度比が `photo_size_ratio_threshold` 以下なら `False`。
+
+#### `normalize(photo_bgr: np.ndarray, origin_bgr: np.ndarray) -> np.ndarray`
+実写を白背景＋紺シルエットにし、origin と同じ (幅, 高さ) の BGR 画像を返す。
+
 ### ShapeMatcher
 
 #### `__init__(config: Config)`
@@ -33,9 +44,25 @@
 **引数**:
 - `origin_img`: 元データ画像
 - `dummy_img`: 比較対象画像
-- `method`: 類似度計算方法 (`"diff"` または `"matchshapes"`)
+- `method`: 類似度計算方法
+  - `"diff"`: Huモーメント差分ベース
+  - `"matchshapes"`: 凸包輪郭の `cv2.matchShapes`（I1距離 → `1/(1+d)`）
 
 **戻り値**: マッチング結果
+
+### MatchPipeline
+
+#### `__init__(loader, normalizer, matcher, exporter)`
+各コンポーネントをコンストラクタで受け取る（Dependency Injection）。
+
+#### `prepare_dummy_for_match(origin_img, dummy_img) -> Tuple[np.ndarray, bool]`
+必要なら CAD 風正規化した dummy と `photo_normalized` フラグを返す。
+
+#### `process_pair(origin_img, dummy_img, method="diff") -> MatchResult`
+正規化 → 形状マッチングまで実行する。
+
+#### `create_match_pipeline(loader, normalizer, matcher, exporter) -> MatchPipeline`
+依存を外から渡してパイプラインを組み立てる。
 
 ### ResultExporter
 
@@ -73,31 +100,41 @@ class Config:
     
     # 出力設定
     output_dir: str = "output"
+
+    # 実写正規化
+    photo_normalize_enabled: bool = True
+    photo_bottom_crop_ratio: float = 0.26
+    photo_size_ratio_threshold: float = 1.5
 ```
 
 ## 使用例
 
 ```python
-# 設定
+from src.config import Config
+from src.image_loader import ImageLoader
+from src.photo_normalizer import PhotoNormalizer
+from src.shape_matcher import ShapeMatcher
+from src.result_exporter import ResultExporter
+from src.match_pipeline import create_match_pipeline
+
 config = Config(match_threshold=0.85)
+pipeline = create_match_pipeline(
+    loader=ImageLoader(),
+    normalizer=PhotoNormalizer(config),
+    matcher=ShapeMatcher(config),
+    exporter=ResultExporter(),
+)
 
-# コンポーネント初期化
-loader = ImageLoader()
-matcher = ShapeMatcher(config)
-exporter = ResultExporter()
+origin, dummy = pipeline.loader.load_image_pair(
+    "imgs/origin/test.png", "imgs/dummy/test.png"
+)
+result = pipeline.process_pair(origin, dummy, method="diff")
+result.origin_path = "imgs/origin/test.png"
+result.dummy_path = "imgs/dummy/test.png"
 
-# 画像読み込み
-origin, dummy = loader.load_image_pair("imgs/origin/test.png", "imgs/dummy/test.png")
-
-# 形状マッチング
-result = matcher.match_shapes(origin, dummy, method="diff")
-
-# 結果出力
-exporter.export_image(result, "output/result.png")
-exporter.export_json(result, "output/result.json")
-
-# 結果確認
+pipeline.export_result(result, "output/result.png", "output/result.json")
 print(f"Similarity: {result.similarity_score:.3f}")
+print(f"Photo normalized: {result.photo_normalized}")
 print(f"Match: {result.is_match}")
 ```
 
@@ -108,8 +145,13 @@ print(f"Match: {result.is_match}")
 ### `GET /`
 差分結果を閲覧できるWebインターフェース（HTML）を返します。
 
+### `GET /api/result-image/{result_id}`
+結果 PNG を返す。`result_id` は JSON のベース名（例: `実写直近(ドトール)_jpg`、URL エンコード済み）。日本語ファイル名は `/output/` 直リンクではなく本 API 経由で配信する。
+
 ### `GET /api/results`
 `output/` ディレクトリ内に保存されているすべての差分検出結果（JSON）と、対応する画像パスのリストを返します。（類似度の高い順にソート済）
+
+`result_image` は `/api/result-image/{urlencoded_id}` 形式。
 
 **戻り値**:
 ```json
@@ -121,9 +163,10 @@ print(f"Match: {result.is_match}")
       "is_match": true,
       "origin_path": "imgs/origin/POLITEC(ドトール).png",
       "dummy_path": "imgs/dummy/dummy(ドトール)入れ替えズレあり_00_CLPOIET.jpg",
+      "photo_normalized": false,
       "hu_moments_origin": [...],
       "hu_moments_dummy": [...],
-      "result_image": "/output/dummy(ドトール)入れ替えズレあり_00_CLPOIET_result.png"
+      "result_image": "/api/result-image/dummy(%E3%83%89%E3%83%88%E3%83%BC%E3%83%AB)%E5%85%A5%E3%82%8C%E6%9B%BF%E3%81%88%E3%82%9A%E3%83%AC%E3%81%82%E3%82%8A_00_CLPOIET_jpg"
     }
   ]
 }

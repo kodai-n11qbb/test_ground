@@ -38,6 +38,7 @@ class ResultExporter:
             "is_match": result.is_match,
             "origin_path": result.origin_path,
             "dummy_path": result.dummy_path,
+            "photo_normalized": result.photo_normalized,
             "hu_moments_origin": result.hu_moments_origin.tolist() if result.hu_moments_origin is not None else None,
             "hu_moments_dummy": result.hu_moments_dummy.tolist() if result.hu_moments_dummy is not None else None
         }

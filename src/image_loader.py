@@ -35,7 +35,7 @@ class ImageLoader:
         
         return origin, dummy
     
-    def load_directory(self, origin_dir: str, dummy_dir: str) -> List[Tuple[str, np.ndarray, np.ndarray]]:
+    def load_directory(self, origin_dir: str, dummy_dir: str) -> List[Tuple[str, str, np.ndarray, np.ndarray]]:
         """
         ディレクトリ内の全画像ペアを読み込む。
         カッコ内のキーワードでマッチングする。

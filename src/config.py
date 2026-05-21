@@ -16,3 +16,8 @@ class Config:
     
     # 出力設定
     output_dir: str = "output"
+
+    # 実写 → CAD 風正規化（カメラ入力と origin のドメインを揃える）
+    photo_normalize_enabled: bool = True
+    photo_bottom_crop_ratio: float = 0.26
+    photo_size_ratio_threshold: float = 1.5

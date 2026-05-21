@@ -27,7 +27,10 @@ class ShapeMatcher:
         hu_dummy = self._calculate_hu_moments_from_contours(dummy_contours)
         
         # 類似度計算
-        similarity = self._compare_hu_moments(hu_origin, hu_dummy, method)
+        if method == "matchshapes":
+            similarity = self._compare_contours_match_shapes(origin_contours, dummy_contours)
+        else:
+            similarity = self._compare_hu_moments(hu_origin, hu_dummy)
         
         # 判定
         is_match = similarity >= self.config.match_threshold
@@ -83,49 +86,41 @@ class ShapeMatcher:
         
         return contours
     
+    def _contour_hull(self, contours: list) -> Optional[np.ndarray]:
+        """複数輪郭を凸包で1つの形状に統合する。"""
+        if not contours:
+            return None
+        all_points = np.vstack([c for c in contours])
+        return cv2.convexHull(all_points)
+
     def _calculate_hu_moments_from_contours(self, contours: list) -> np.ndarray:
         """
         輪郭からHuモーメントを計算。
         複数の輪郭がある場合は、全ての輪郭を統合して1つの形状として扱う。
         """
-        if not contours:
+        hull = self._contour_hull(contours)
+        if hull is None:
             return np.zeros(7)
-        
-        # 全ての輪郭を統合（凸包を作成）
-        all_points = np.vstack([c for c in contours])
-        hull = cv2.convexHull(all_points)
-        
-        # モーメント計算
+
         moments = cv2.moments(hull)
-        
-        # Huモーメント計算
         hu_moments = cv2.HuMoments(moments)
-        
         return hu_moments.flatten()
-    
-    def _compare_hu_moments(self, hu1: np.ndarray, hu2: np.ndarray, method: str = "diff") -> float:
-        """
-        2つのHuモーメントの類似度を計算。
-        method: "diff" (差分ベース) または "matchshapes" (OpenCV標準)
-        """
+
+    def _compare_hu_moments(self, hu1: np.ndarray, hu2: np.ndarray) -> float:
+        """Huモーメント差分ベースの類似度（method=diff）。"""
         if hu1 is None or hu2 is None:
             return 0.0
-        
-        if method == "diff":
-            # 差分ベース
-            diff = np.abs(hu1 - hu2)
-            max_diff = np.max(diff) if np.max(diff) > 0 else 1.0
-            similarity = 1.0 - (np.mean(diff) / max_diff)
-            return float(similarity)
-        elif method == "matchshapes":
-            # Huモーメントの対数変換（matchShapes用）
-            hu1_log = -np.sign(hu1) * np.log10(np.abs(hu1) + 1e-10)
-            hu2_log = -np.sign(hu2) * np.log10(np.abs(hu2) + 1e-10)
-            
-            # 差分ベース
-            diff = np.abs(hu1_log - hu2_log)
-            max_diff = np.max(diff) if np.max(diff) > 0 else 1.0
-            similarity = 1.0 - (np.mean(diff) / max_diff)
-            return float(similarity)
-        else:
+
+        diff = np.abs(hu1 - hu2)
+        max_diff = np.max(diff) if np.max(diff) > 0 else 1.0
+        return float(1.0 - (np.mean(diff) / max_diff))
+
+    def _compare_contours_match_shapes(self, contours1: list, contours2: list) -> float:
+        """凸包輪郭の cv2.matchShapes による類似度（method=matchshapes）。"""
+        hull1 = self._contour_hull(contours1)
+        hull2 = self._contour_hull(contours2)
+        if hull1 is None or hull2 is None:
             return 0.0
+
+        distance = float(cv2.matchShapes(hull1, hull2, cv2.CONTOURS_MATCH_I1, 0.0))
+        return 1.0 / (1.0 + distance)

@@ -8,9 +8,9 @@
 ┌─────────────────────────────────────────────────────────┐
 │                    Web Viewer (FastAPI)                 │
 ├─────────────────────────────────────────────────────────┤
-│                    Main Controller                      │
+│              Main Controller (MatchPipeline)              │
 ├─────────────────────────────────────────────────────────┤
-│  ImageLoader  │  ShapeMatcher  │  ResultExporter        │
+│  ImageLoader  │  PhotoNormalizer │  ShapeMatcher │ ResultExporter │
 ├─────────────────────────────────────────────────────────┤
 │                    OpenCV Functions                     │
 ├─────────────────────────────────────────────────────────┤
@@ -29,7 +29,32 @@ class ImageLoader:
     def load_directory(self, origin_dir: str, dummy_dir: str) -> List[Tuple[str, str, np.ndarray, np.ndarray]]
 ```
 
-### 2. ShapeMatcher
+### 2. PhotoNormalizer
+**責務**: カメラ実写 dummy を origin と同じ CAD 風表現に正規化する
+
+```python
+class PhotoNormalizer:
+    def __init__(self, config: Config)
+    def needs_normalization(self, dummy_img: np.ndarray, origin_img: np.ndarray) -> bool
+    def normalize(self, photo_bgr: np.ndarray, origin_bgr: np.ndarray) -> np.ndarray
+```
+
+- `Config` を DI で受け取る
+- 解像度比が閾値以下の dummy（合成データ等）はスキップ
+
+### 3. MatchPipeline
+**責務**: 読み込み・正規化・照合・出力のオーケストレーション（DIで各コンポーネントを受け取る）
+
+```python
+class MatchPipeline:
+    def __init__(self, loader, normalizer, matcher, exporter)
+    def prepare_dummy_for_match(self, origin_img, dummy_img) -> Tuple[np.ndarray, bool]
+    def process_pair(self, origin_img, dummy_img, method="diff") -> MatchResult
+```
+
+`pipeline_factory.build_default_pipeline(config)` が composition root 用の既定配線を提供する。
+
+### 4. ShapeMatcher
 **責務**: 形状マッチングによる差分検出（位置不変）
 
 ```python
@@ -39,7 +64,7 @@ class ShapeMatcher:
                     method: str = "diff") -> MatchResult
 ```
 
-### 3. ResultExporter
+### 5. ResultExporter
 **責務**: 結果の出力（画像ファイル、JSON）
 
 ```python
@@ -48,7 +73,7 @@ class ResultExporter:
     def export_json(self, result: MatchResult, output_path: str) -> None
 ```
 
-### 4. Web Viewer (api.py)
+### 6. Web Viewer (api.py)
 **責務**: 検出結果の一覧表示と可視化を行うWebインターフェースの提供
 - FastAPIによるAPIバックエンドと静的ファイル（出力画像・JSON）の配信
 - HTML/JS/CSSによるフロントエンド画面
@@ -68,6 +93,7 @@ class MatchResult:
     diff_mask: Optional[np.ndarray]
     origin_img: Optional[np.ndarray]
     dummy_img: Optional[np.ndarray]
+    photo_normalized: bool
 ```
 
 ## Dependency Injectionの適用
@@ -75,19 +101,19 @@ class MatchResult:
 各コンポーネントは依存をコンストラクタで受け取る：
 
 ```python
-config = Config(match_threshold=0.73)
-matcher = ShapeMatcher(config)
-exporter = ResultExporter()
+pipeline = build_default_pipeline(Config(match_threshold=0.73))
 ```
 
 ## データフロー
 
 ```
-1. ImageLoader: 画像読み込み
+1. MatchPipeline / ImageLoader: 画像読み込み
    ↓
-2. ShapeMatcher: 前処理 → 輪郭抽出 → Huモーメント計算 → 形状マッチング
+2. MatchPipeline / PhotoNormalizer: 実写なら CAD 風正規化（合成 dummy はスキップ）
    ↓
-3. ResultExporter: 結果出力（画像 + JSON）
+3. MatchPipeline / ShapeMatcher: 前処理 → 輪郭抽出 → 類似度（Hu または matchShapes）
+   ↓
+4. MatchPipeline / ResultExporter: 結果出力（画像 + JSON）
 ```
 
 ## 拡張ポイント

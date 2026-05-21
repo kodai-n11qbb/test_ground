@@ -14,3 +14,4 @@ class MatchResult:
     diff_mask: Optional[np.ndarray] = None
     origin_img: Optional[np.ndarray] = None
     dummy_img: Optional[np.ndarray] = None
+    photo_normalized: bool = False

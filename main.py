@@ -1,9 +1,7 @@
 import argparse
+
 from src.config import Config
-from src.image_loader import ImageLoader
-from src.shape_matcher import ShapeMatcher
-from src.result_exporter import ResultExporter
-from src.models import MatchResult
+from src.pipeline_factory import build_default_pipeline
 
 
 def main():
@@ -15,53 +13,46 @@ def main():
     parser.add_argument('--method', type=str, default='diff', choices=['diff', 'matchshapes'], help='類似度計算方法')
     parser.add_argument('--canny1', type=float, default=50.0, help='Canny閾値1')
     parser.add_argument('--canny2', type=float, default=150.0, help='Canny閾値2')
-    
+    parser.add_argument('--no-photo-normalize', action='store_true', help='実写のCAD風正規化を無効化')
+
     args = parser.parse_args()
-    
-    # 設定
+
     config_kwargs = {
         'output_dir': args.output,
         'canny_threshold1': args.canny1,
-        'canny_threshold2': args.canny2
+        'canny_threshold2': args.canny2,
     }
     if args.threshold is not None:
         config_kwargs['match_threshold'] = args.threshold
+    if args.no_photo_normalize:
+        config_kwargs['photo_normalize_enabled'] = False
     config = Config(**config_kwargs)
-    
-    # コンポーネント初期化（Dependency Injection）
-    loader = ImageLoader()
-    matcher = ShapeMatcher(config)
-    exporter = ResultExporter()
-    
-    # 画像読み込み
+
+    pipeline = build_default_pipeline(config)
+
     print(f"Loading images from {args.origin} and {args.dummy}...")
-    pairs = loader.load_directory(args.origin, args.dummy)
+    pairs = pipeline.load_directory(args.origin, args.dummy)
     print(f"Found {len(pairs)} image pairs")
-    
-    # 各ペアを処理
+
     results = []
     for origin_file, dummy_file, origin, dummy in pairs:
         print(f"Processing: {dummy_file}")
-        
-        # パスを設定
-        result = matcher.match_shapes(origin, dummy, method=args.method)
+
+        result = pipeline.process_pair(origin, dummy, method=args.method)
         result.origin_path = f"{args.origin}/{origin_file}"
         result.dummy_path = f"{args.dummy}/{dummy_file}"
-        
-        # 結果出力
+
         output_name = dummy_file.replace('.', '_')
         image_path = f"{args.output}/{output_name}_result.png"
         json_path = f"{args.output}/{output_name}_result.json"
-        
-        exporter.export_image(result, image_path)
-        exporter.export_json(result, json_path)
-        
+
+        pipeline.export_result(result, image_path, json_path)
         results.append(result)
-        
+
         print(f"  Similarity: {result.similarity_score:.3f}")
+        print(f"  Photo normalized: {result.photo_normalized}")
         print(f"  Match: {result.is_match}")
-    
-    # サマリー
+
     match_count = sum(1 for r in results if r.is_match)
     print(f"\nSummary: {match_count}/{len(results)} matches")
 

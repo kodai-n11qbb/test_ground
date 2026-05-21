@@ -17,7 +17,8 @@ def dummy_result():
         origin_path="origin/path/test.png",
         dummy_path="dummy/path/test.png",
         hu_moments_origin=np.zeros(7),
-        hu_moments_dummy=np.zeros(7)
+        hu_moments_dummy=np.zeros(7),
+        photo_normalized=True,
     )
 
 def test_export_image(result_exporter, dummy_result, tmp_path):
@@ -43,4 +44,5 @@ def test_export_json(result_exporter, dummy_result, tmp_path):
     assert data["is_match"] is True
     assert data["origin_path"] == "origin/path/test.png"
     assert data["dummy_path"] == "dummy/path/test.png"
+    assert data["photo_normalized"] is True
     assert len(data["hu_moments_origin"]) == 7
