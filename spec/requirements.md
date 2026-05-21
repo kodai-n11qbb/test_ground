@@ -40,7 +40,7 @@ originディレクトリの元データとdummyディレクトリのミス生成
 ### 5. 可視化
 - 元画像とダミー画像のブレンド画像上に、差分マスクを赤色でハイライトした画像ファイル出力
 - 結果のJSON出力（他言語連携用）
-- FastAPIとHTML/JSによるWebベースの差分ビューア（将来的な拡張性を考慮した構成）
+- FastAPIとHTML/JSによるWebベースの差分ビューア
 
 ## 非機能要件
 
@@ -49,7 +49,7 @@ originディレクトリの元データとdummyディレクトリのミス生成
 - メモリ使用量の最適化
 
 ### 拡張性
-- DEV_POLICY.mmdに従う設計
+- [DEV_POLICY.md](../DEV_POLICY.md)に従う設計
 - Dependency Injectionによる依存関係の整理
 - 将来的なアルゴリズム変更への対応
 
@@ -62,7 +62,8 @@ originディレクトリの元データとdummyディレクトリのミス生成
 
 - **言語**: Python 3.x
 - **画像処理**: OpenCV (cv2)
-- **可視化**: matplotlib または OpenCV GUI
+- **Web**: FastAPI, uvicorn
+- **可視化**: 画像ファイル出力、Webビューア（HTML/JS/CSS）
 - **テスト**: pytest
 
 ## 入出力
@@ -78,6 +79,6 @@ originディレクトリの元データとdummyディレクトリのミス生成
 
 ## 制約事項
 
-- originとdummyの画像ファイル名は一致している必要がある
+- originとdummyは、ファイル名のカッコ内キーワードが一致する組み合わせでペアリングする（1対多可）
 - 画像サイズは一致している必要がある（または自動リサイズ）
-- DEV_POLICY.mmdの開発方針に従う
+- [DEV_POLICY.md](../DEV_POLICY.md)の開発方針に従う

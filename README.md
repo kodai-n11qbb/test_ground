@@ -3,6 +3,16 @@
 本プロジェクトは、元データ（CADデータ想定）とテストデータ（カメラ入力想定）の画像間で、位置ズレを許容しつつ形状の差分を検出するシステムです。
 また、出力された結果をWebブラウザ上で確認できるFastAPIベースのWebビューアを備えています。
 
+## 仕様書
+
+設計・要件の正本は `spec/` にあります。
+
+- [要件定義](spec/requirements.md)
+- [アーキテクチャ](spec/architecture.md)
+- [API仕様](spec/api_spec.md)
+
+開発方針は [DEV_POLICY.md](DEV_POLICY.md) を参照してください。
+
 ## 技術スタック
 - Python 3.x
 - OpenCV (`opencv-python`)

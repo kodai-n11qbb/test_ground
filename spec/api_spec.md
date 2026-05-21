@@ -24,34 +24,18 @@
 
 ### ShapeMatcher
 
-#### `match_shapes(origin_img: np.ndarray, dummy_img: np.ndarray, config: Config, method: str = "diff") -> MatchResult`
-形状マッチングによる差分検出を実行する（位置不変）。
+#### `__init__(config: Config)`
+設定をコンストラクタで受け取る（Dependency Injection）。
+
+#### `match_shapes(origin_img: np.ndarray, dummy_img: np.ndarray, method: str = "diff") -> MatchResult`
+形状マッチングによる差分検出を実行する（位置不変）。絶対差分マスクも `MatchResult.diff_mask` に格納する。
 
 **引数**:
 - `origin_img`: 元データ画像
 - `dummy_img`: 比較対象画像
-- `config`: 設定パラメータ
-- `method`: 類似度計算方法 ("diff" または "matchshapes")
+- `method`: 類似度計算方法 (`"diff"` または `"matchshapes"`)
 
 **戻り値**: マッチング結果
-
-#### `calculate_hu_moments(contour: np.ndarray) -> np.ndarray`
-輪郭からHuモーメントを計算する。
-
-**引数**:
-- `contour`: 輪郭座標配列
-
-**戻り値**: Huモーメント（7次元ベクトル）
-
-#### `compare_hu_moments(hu1: np.ndarray, hu2: np.ndarray, method: str = "diff") -> float`
-2つのHuモーメントの類似度を計算する。
-
-**引数**:
-- `hu1`: Huモーメント1
-- `hu2`: Huモーメント2
-- `method`: 類似度計算方法 ("diff" または "matchshapes")
-
-**戻り値**: 類似度スコア（0.0 - 1.0）
 
 ### ResultExporter
 
@@ -99,14 +83,14 @@ config = Config(match_threshold=0.85)
 
 # コンポーネント初期化
 loader = ImageLoader()
-matcher = ShapeMatcher()
+matcher = ShapeMatcher(config)
 exporter = ResultExporter()
 
 # 画像読み込み
 origin, dummy = loader.load_image_pair("imgs/origin/test.png", "imgs/dummy/test.png")
 
 # 形状マッチング
-result = matcher.match_shapes(origin, dummy, config)
+result = matcher.match_shapes(origin, dummy, method="diff")
 
 # 結果出力
 exporter.export_image(result, "output/result.png")

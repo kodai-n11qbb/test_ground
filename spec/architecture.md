@@ -26,7 +26,7 @@
 ```python
 class ImageLoader:
     def load_image_pair(self, origin_path: str, dummy_path: str) -> Tuple[np.ndarray, np.ndarray]
-    def load_directory(self, origin_dir: str, dummy_dir: str) -> List[Tuple[str, np.ndarray, np.ndarray]]
+    def load_directory(self, origin_dir: str, dummy_dir: str) -> List[Tuple[str, str, np.ndarray, np.ndarray]]
 ```
 
 ### 2. ShapeMatcher
@@ -34,10 +34,9 @@ class ImageLoader:
 
 ```python
 class ShapeMatcher:
-    def match_shapes(self, origin_img: np.ndarray, dummy_img: np.ndarray, 
-                    config: Config) -> MatchResult
-    def calculate_hu_moments(self, contour: np.ndarray) -> np.ndarray
-    def compare_hu_moments(self, hu1: np.ndarray, hu2: np.ndarray) -> float
+    def __init__(self, config: Config)
+    def match_shapes(self, origin_img: np.ndarray, dummy_img: np.ndarray,
+                    method: str = "diff") -> MatchResult
 ```
 
 ### 3. ResultExporter
@@ -64,8 +63,11 @@ class MatchResult:
     is_match: bool  # 閾値による判定
     origin_path: str
     dummy_path: str
-    hu_moments_origin: np.ndarray
-    hu_moments_dummy: np.ndarray
+    hu_moments_origin: Optional[np.ndarray]
+    hu_moments_dummy: Optional[np.ndarray]
+    diff_mask: Optional[np.ndarray]
+    origin_img: Optional[np.ndarray]
+    dummy_img: Optional[np.ndarray]
 ```
 
 ## Dependency Injectionの適用
@@ -73,9 +75,9 @@ class MatchResult:
 各コンポーネントは依存をコンストラクタで受け取る：
 
 ```python
-class DifferenceDetector:
-    def __init__(self, contour_comparator: ContourComparator):
-        self.contour_comparator = contour_comparator
+config = Config(match_threshold=0.73)
+matcher = ShapeMatcher(config)
+exporter = ResultExporter()
 ```
 
 ## データフロー
@@ -98,10 +100,6 @@ class DifferenceDetector:
 
 ## テスト戦略
 
-### 実験ベースのテスト
-- 実際の画像データ（imgs/origin, imgs/dummy）を使用
-- 各パラメータ設定での結果を比較
-- 目視確認による精度評価
-
-### 簡易的な単体テスト
-- 主要関数の基本動作確認
+- `tests/` に pytest による単体テスト（合成画像）
+- 実画像での検証は `python main.py` 実行後、`output/` と Web ビューアで確認
+- [DEV_POLICY.md](../DEV_POLICY.md) の Refactor-ready Test に従う
