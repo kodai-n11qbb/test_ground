@@ -31,7 +31,7 @@
 実写の CAD 風正規化が必要か判定する。解像度比が `photo_size_ratio_threshold` 以下なら `False`。
 
 #### `normalize(photo_bgr: np.ndarray, origin_bgr: np.ndarray) -> np.ndarray`
-実写を白背景＋紺シルエットにし、origin と同じ (幅, 高さ) の BGR 画像を返す。
+実写画像から青色領域の最大輪郭をもとに4隅を特定し、射影変換（台形補正）によって歪みのない長方形にした上で、白背景＋紺シルエットの origin と同じ (幅, 高さ) の BGR 画像を返す。
 
 ### ShapeMatcher
 
@@ -67,7 +67,7 @@
 ### ResultExporter
 
 #### `export_image(result: MatchResult, output_path: str) -> None`
-結果を画像ファイルとして出力する。
+結果を画像ファイルとして出力する。元画像とダミー画像のブレンド画像上に、originの輪郭（緑）と補正後dummyの輪郭（赤）を重ねて描画（オーバーレイ）して出力する。
 
 **引数**:
 - `result`: マッチング結果

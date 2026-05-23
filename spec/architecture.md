@@ -30,7 +30,7 @@ class ImageLoader:
 ```
 
 ### 2. PhotoNormalizer
-**責務**: カメラ実写 dummy を origin と同じ CAD 風表現に正規化する
+**責務**: カメラ実写 dummy の看板領域から4隅を特定し、射影変換（台形補正）によって origin と同じ CAD 風表現（サイズ・縦横比も一致）に正規化する
 
 ```python
 class PhotoNormalizer:
@@ -41,6 +41,7 @@ class PhotoNormalizer:
 
 - `Config` を DI で受け取る
 - 解像度比が閾値以下の dummy（合成データ等）はスキップ
+- 青色マスクの輪郭検出から看板の4隅を自動抽出し、`warpPerspective` を用いて正面からの長方形画像に補正する
 
 ### 3. MatchPipeline
 **責務**: 読み込み・正規化・照合・出力のオーケストレーション（DIで各コンポーネントを受け取る）
@@ -55,7 +56,7 @@ class MatchPipeline:
 `pipeline_factory.build_default_pipeline(config)` が composition root 用の既定配線を提供する。
 
 ### 4. ShapeMatcher
-**責務**: 形状マッチングによる差分検出（位置不変）
+**責務**: 形状マッチングによる差分検出（位置不変）およびアライメント調整
 
 ```python
 class ShapeMatcher:
@@ -66,6 +67,7 @@ class ShapeMatcher:
 
 ### 5. ResultExporter
 **責務**: 結果の出力（画像ファイル、JSON）
+- 出力画像には、originの輪郭（例：緑）と補正後dummyの輪郭（例：赤）を重ねて描画（オーバーレイ）し、ズレの状態が視覚的にわかるようにする
 
 ```python
 class ResultExporter:
@@ -109,11 +111,11 @@ pipeline = build_default_pipeline(Config(match_threshold=0.73))
 ```
 1. MatchPipeline / ImageLoader: 画像読み込み
    ↓
-2. MatchPipeline / PhotoNormalizer: 実写なら CAD 風正規化（合成 dummy はスキップ）
+2. MatchPipeline / PhotoNormalizer: 実写なら4隅検出・射影変換（台形補正）による長方形化およびCAD風正規化
    ↓
-3. MatchPipeline / ShapeMatcher: 前処理 → 輪郭抽出 → 類似度（Hu または matchShapes）
+3. MatchPipeline / ShapeMatcher: 前処理 → 輪郭抽出および重ね合わせアライメント調整 → 類似度算出
    ↓
-4. MatchPipeline / ResultExporter: 結果出力（画像 + JSON）
+4. MatchPipeline / ResultExporter: 結果出力（輪郭同士を重ね合わせた画像 + JSON）
 ```
 
 ## 拡張ポイント
