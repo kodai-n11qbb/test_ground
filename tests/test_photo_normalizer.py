@@ -63,3 +63,29 @@ def test_normalize_improves_pixel_diff_vs_raw_resize(normalizer):
     diff_norm = cv2.absdiff(origin, norm)
     diff_raw = cv2.absdiff(origin, raw)
     assert int((diff_norm > 30).sum()) < int((diff_raw > 30).sum())
+
+
+def test_order_points(normalizer):
+    # Unsorted points
+    pts = np.array([[100, 100], [0, 100], [100, 0], [0, 0]], dtype=np.float32)
+    ordered = normalizer._order_points(pts)
+    # Expected order: Top-Left [0,0], Top-Right [100,0], Bottom-Right [100,100], Bottom-Left [0,100]
+    expected = np.array([[0, 0], [100, 0], [100, 100], [0, 100]], dtype=np.float32)
+    assert np.allclose(ordered, expected)
+
+
+def test_detect_four_corners(normalizer):
+    # Create a mask with a rectangle
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    cv2.rectangle(mask, (30, 30), (170, 170), 255, -1)
+    
+    corners = normalizer._detect_four_corners(mask)
+    assert corners is not None
+    assert len(corners) == 4
+    # Check that corners are approximately the rectangle boundaries
+    # Sorted corners should match the expected rect points roughly
+    ordered = normalizer._order_points(corners)
+    # Expected corners: (30, 30), (170, 30), (170, 170), (30, 170)
+    for p, exp in zip(ordered, [[30, 30], [170, 30], [170, 170], [30, 170]]):
+        assert np.linalg.norm(p - exp) < 5.0
+

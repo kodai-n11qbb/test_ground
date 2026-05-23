@@ -54,7 +54,9 @@ class ShapeMatcher:
             hu_moments_dummy=hu_dummy,
             diff_mask=mask,
             origin_img=origin_img,
-            dummy_img=dummy_resized
+            dummy_img=dummy_resized,
+            origin_contours=origin_contours,
+            dummy_contours=dummy_contours
         )
     
     def _preprocess(self, img: np.ndarray) -> np.ndarray:

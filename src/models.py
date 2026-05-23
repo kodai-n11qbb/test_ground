@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 
 
@@ -15,3 +15,5 @@ class MatchResult:
     origin_img: Optional[np.ndarray] = None
     dummy_img: Optional[np.ndarray] = None
     photo_normalized: bool = False
+    origin_contours: Optional[List] = None
+    dummy_contours: Optional[List] = None

@@ -12,12 +12,18 @@ class ResultExporter:
         結果を画像ファイルとして出力する。
         元画像とダミー画像をブレンドし、はみ出している（差分）箇所を赤くハイライトして出力する。
         """
-        if result.origin_img is not None and result.diff_mask is not None:
+        if result.origin_img is not None and result.dummy_img is not None:
             # 50/50ブレンドで全体構造を薄く見せる
             blend = cv2.addWeighted(result.origin_img, 0.5, result.dummy_img, 0.5, 0)
             
-            # 差分（はみ出している・欠けている）箇所を赤く塗る
-            blend[result.diff_mask > 0] = [0, 0, 255]
+            # originの輪郭を緑色で描画
+            if result.origin_contours is not None:
+                cv2.drawContours(blend, result.origin_contours, -1, (0, 255, 0), 2)
+                
+            # dummyの輪郭を赤色で描画
+            if result.dummy_contours is not None:
+                cv2.drawContours(blend, result.dummy_contours, -1, (0, 0, 255), 2)
+                
             img = blend
         else:
             # フォールバック

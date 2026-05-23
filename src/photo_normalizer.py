@@ -27,13 +27,74 @@ class PhotoNormalizer:
         return max(dh, dw) > max(oh, ow) * self.config.photo_size_ratio_threshold
 
     def normalize(self, photo_bgr: np.ndarray, origin_bgr: np.ndarray) -> np.ndarray:
-        """実写を CAD 風フラット画像にし、origin と同じ (w, h) にリサイズする。"""
+        """実写を台形補正・CAD 風フラット画像にし、origin と同じ (w, h) にリサイズする。"""
         cropped = self._crop_letter_roi(photo_bgr)
         mask = self._extract_letter_mask(cropped)
-        x0, y0, x1, y1 = self._auto_crop_to_mask(mask)
-        flat = self._mask_to_flat_cad(mask[y0:y1, x0:x1])
+        
+        corners = self._detect_four_corners(mask)
         oh, ow = origin_bgr.shape[:2]
-        return cv2.resize(flat, (ow, oh), interpolation=cv2.INTER_AREA)
+        
+        if corners is not None:
+            # 4隅を整列して射影変換を実行
+            src_pts = self._order_points(corners)
+            dst_pts = np.array([
+                [0, 0],
+                [ow - 1, 0],
+                [ow - 1, oh - 1],
+                [0, oh - 1]
+            ], dtype=np.float32)
+            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+            warped = cv2.warpPerspective(cropped, M, (ow, oh))
+            
+            # 補正後の画像から再度マスクを抽出してフラット化
+            warped_mask = self._extract_letter_mask(warped)
+            flat = self._mask_to_flat_cad(warped_mask)
+            return flat
+        else:
+            # フォールバック（従来の外接矩形切り出し＋リサイズ）
+            x0, y0, x1, y1 = self._auto_crop_to_mask(mask)
+            flat = self._mask_to_flat_cad(mask[y0:y1, x0:x1])
+            return cv2.resize(flat, (ow, oh), interpolation=cv2.INTER_AREA)
+
+    def _order_points(self, pts: np.ndarray) -> np.ndarray:
+        pts = pts.astype(np.float32)
+        rect = np.zeros((4, 2), dtype=np.float32)
+        
+        s = pts.sum(axis=1)
+        rect[0] = pts[np.argmin(s)]
+        rect[2] = pts[np.argmax(s)]
+        
+        diff = np.diff(pts, axis=1)
+        rect[1] = pts[np.argmin(diff)]
+        rect[3] = pts[np.argmax(diff)]
+        
+        return rect
+
+    def _detect_four_corners(self, mask: np.ndarray) -> np.ndarray | None:
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return None
+        
+        all_points = []
+        for c in contours:
+            if cv2.contourArea(c) > 10:
+                all_points.append(c)
+                
+        if not all_points:
+            return None
+            
+        merged_points = np.vstack(all_points)
+        hull = cv2.convexHull(merged_points)
+        
+        peri = cv2.arcLength(hull, True)
+        for eps in np.linspace(0.01, 0.2, 50):
+            approx = cv2.approxPolyDP(hull, eps * peri, True)
+            if len(approx) == 4:
+                return approx.reshape(4, 2)
+                
+        rect = cv2.minAreaRect(hull)
+        box = cv2.boxPoints(rect)
+        return np.array(box, dtype=np.int32)
 
     def _crop_letter_roi(self, img: np.ndarray) -> np.ndarray:
         h = img.shape[0]
