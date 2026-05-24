@@ -34,27 +34,78 @@ class PhotoNormalizer:
         corners = self._detect_four_corners(mask)
         oh, ow = origin_bgr.shape[:2]
         
+        # Get origin letter bounding box to align properly
+        origin_gray = cv2.cvtColor(origin_bgr, cv2.COLOR_BGR2GRAY)
+        _, origin_mask = cv2.threshold(origin_gray, 200, 255, cv2.THRESH_BINARY_INV)
+        ys_orig, xs_orig = np.where(origin_mask > 0)
+        if len(xs_orig) > 0:
+            ox0, ox1 = int(xs_orig.min()), int(xs_orig.max())
+            oy0, oy1 = int(ys_orig.min()), int(ys_orig.max())
+        else:
+            ox0, oy0, ox1, oy1 = 0, 0, ow - 1, oh - 1
+        
         if corners is not None:
             # 4隅を整列して射影変換を実行
             src_pts = self._order_points(corners)
-            dst_pts = np.array([
-                [0, 0],
-                [ow - 1, 0],
-                [ow - 1, oh - 1],
-                [0, oh - 1]
-            ], dtype=np.float32)
-            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-            warped = cv2.warpPerspective(cropped, M, (ow, oh))
             
-            # 補正後の画像から再度マスクを抽出してフラット化
-            warped_mask = self._extract_letter_mask(warped)
+            if getattr(self.config, "photo_alignment_mode", "stretch") == "stretch":
+                dst_pts = np.array([
+                    [ox0, oy0],
+                    [ox1, oy0],
+                    [ox1, oy1],
+                    [ox0, oy1]
+                ], dtype=np.float32)
+            else:
+                # Calculate source quad average width and height to check its aspect ratio
+                w_top = np.linalg.norm(src_pts[1] - src_pts[0])
+                w_bot = np.linalg.norm(src_pts[2] - src_pts[3])
+                h_left = np.linalg.norm(src_pts[3] - src_pts[0])
+                h_right = np.linalg.norm(src_pts[2] - src_pts[1])
+                w_avg = (w_top + w_bot) / 2.0
+                h_avg = (h_left + h_right) / 2.0
+                src_ar = w_avg / h_avg if h_avg > 0 else 1.0
+                
+                # Fit vertically or horizontally inside the origin box preserving aspect ratio
+                ox_w = ox1 - ox0
+                ox_h = oy1 - oy0
+                dst_ar = ox_w / ox_h if ox_h > 0 else 1.0
+                
+                if src_ar > dst_ar:
+                    new_h = ox_w / src_ar
+                    oy_offset = (ox_h - new_h) / 2.0
+                    dst_pts = np.array([
+                        [ox0, oy0 + oy_offset],
+                        [ox1, oy0 + oy_offset],
+                        [ox1, oy0 + oy_offset + new_h],
+                        [ox0, oy0 + oy_offset + new_h]
+                    ], dtype=np.float32)
+                else:
+                    new_w = ox_h * src_ar
+                    ox_offset = (ox_w - new_w) / 2.0
+                    dst_pts = np.array([
+                        [ox0 + ox_offset, oy0],
+                        [ox0 + ox_offset + new_w, oy0],
+                        [ox0 + ox_offset + new_w, oy1],
+                        [ox0 + ox_offset, oy1]
+                    ], dtype=np.float32)
+            
+            M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+            # Use white borderValue to fill margins cleanly
+            warped = cv2.warpPerspective(cropped, M, (ow, oh), borderValue=(255, 255, 255))
+            
+            # Prevent double-processing: use simple _blue_mask_hsv instead of _extract_letter_mask
+            warped_mask = self._blue_mask_hsv(warped)
             flat = self._mask_to_flat_cad(warped_mask)
             return flat
         else:
             # フォールバック（従来の外接矩形切り出し＋リサイズ）
             x0, y0, x1, y1 = self._auto_crop_to_mask(mask)
             flat = self._mask_to_flat_cad(mask[y0:y1, x0:x1])
-            return cv2.resize(flat, (ow, oh), interpolation=cv2.INTER_AREA)
+            # Map fallback image directly to the origin bounding box as well for consistency
+            resized = cv2.resize(flat, (ox1 - ox0, oy1 - oy0), interpolation=cv2.INTER_AREA)
+            full = np.full((oh, ow, 3), (255, 255, 255), dtype=np.uint8)
+            full[oy0:oy1, ox0:ox1] = resized
+            return full
 
     def _order_points(self, pts: np.ndarray) -> np.ndarray:
         pts = pts.astype(np.float32)
@@ -71,6 +122,42 @@ class PhotoNormalizer:
         return rect
 
     def _detect_four_corners(self, mask: np.ndarray) -> np.ndarray | None:
+        method = self.config.photo_corner_detection_method
+        if method == "rotated":
+            return self._detect_four_corners_rotated(mask)
+        elif method == "approx":
+            return self._detect_four_corners_approx(mask)
+        else:
+            return self._detect_four_corners_extremum(mask)
+
+    def _detect_four_corners_extremum(self, mask: np.ndarray) -> np.ndarray | None:
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return None
+        
+        all_points = []
+        for c in contours:
+            if cv2.contourArea(c) > 10:
+                all_points.append(c)
+                
+        if not all_points:
+            return None
+            
+        merged_points = np.vstack(all_points)
+        hull = cv2.convexHull(merged_points).reshape(-1, 2)
+        
+        pts = hull.astype(np.float32)
+        s = pts.sum(axis=1)
+        diff = pts[:, 0] - pts[:, 1]
+        
+        tl = hull[np.argmin(s)]
+        tr = hull[np.argmax(diff)]
+        br = hull[np.argmax(s)]
+        bl = hull[np.argmin(diff)]
+        
+        return np.array([tl, tr, br, bl], dtype=np.int32)
+
+    def _detect_four_corners_approx(self, mask: np.ndarray) -> np.ndarray | None:
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return None
@@ -92,6 +179,24 @@ class PhotoNormalizer:
             if len(approx) == 4:
                 return approx.reshape(4, 2)
                 
+        return self._detect_four_corners_rotated(mask)
+
+    def _detect_four_corners_rotated(self, mask: np.ndarray) -> np.ndarray | None:
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return None
+        
+        all_points = []
+        for c in contours:
+            if cv2.contourArea(c) > 10:
+                all_points.append(c)
+                
+        if not all_points:
+            return None
+            
+        merged_points = np.vstack(all_points)
+        hull = cv2.convexHull(merged_points)
+        
         rect = cv2.minAreaRect(hull)
         box = cv2.boxPoints(rect)
         return np.array(box, dtype=np.int32)
@@ -112,15 +217,18 @@ class PhotoNormalizer:
         return cv2.bitwise_or(mask, mask2)
 
     def _remove_bottom_band_artifacts(self, mask: np.ndarray) -> np.ndarray:
+        if not self.config.photo_bottom_band_removal:
+            return mask
         h, w = mask.shape[:2]
-        y_line = int(h * (1.0 - 0.12))
+        band_ratio = self.config.photo_remove_band_height_ratio
+        y_line = int(h * (1.0 - band_ratio))
         n, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
         out = mask.copy()
         for i in range(1, n):
             x, y, bw, bh, area = stats[i]
             if y + bh < y_line:
                 continue
-            if bw > w * 0.25 and bh < h * 0.04:
+            if bw > w * 0.25 and bh < h * band_ratio:
                 out[labels == i] = 0
         return out
 

@@ -12,7 +12,7 @@ class Config:
     canny_threshold2: float = 100.0
     
     # 形状マッチング閾値（調整可能）
-    match_threshold: float = 0.9  # この値以上ならOKと判定
+    match_threshold: float = 0.70  # この値以上ならOKと判定 (IoU基準のデフォルト値)
     
     # 出力設定
     output_dir: str = "output"
@@ -21,3 +21,9 @@ class Config:
     photo_normalize_enabled: bool = True
     photo_bottom_crop_ratio: float = 0.26
     photo_size_ratio_threshold: float = 1.5
+    photo_bottom_band_removal: bool = True
+    photo_remove_band_height_ratio: float = 0.15
+    photo_corner_detection_method: str = "rotated"
+    photo_alignment_mode: str = "stretch"  # "stretch" または "fit"
+    match_method: str = "iou"  # "iou", "diff", "matchshapes"
+    hu_moments_compare_limit: int = 7

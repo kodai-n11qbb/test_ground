@@ -68,3 +68,38 @@ def test_compare_contours_match_shapes(shape_matcher):
 
     sim = shape_matcher._compare_contours_match_shapes(contours, contours)
     assert sim > 0.9
+
+def test_compare_hu_moments_with_limit(shape_matcher):
+    hu1 = np.array([1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001])
+    hu2 = np.array([1.0, 0.1, 99.0, 99.0, 99.0, 99.0, 99.0])
+    
+    shape_matcher.config.hu_moments_compare_limit = 2
+    sim_2 = shape_matcher._compare_hu_moments(hu1, hu2)
+    assert sim_2 > 0.99
+    
+    shape_matcher.config.hu_moments_compare_limit = 7
+    sim_7 = shape_matcher._compare_hu_moments(hu1, hu2)
+    assert sim_7 < sim_2
+
+def test_compare_iou_identical(shape_matcher):
+    img1 = create_shape_image("square")
+    img2 = create_shape_image("square")
+    
+    sim = shape_matcher._compare_iou(img1, img2)
+    assert sim == 1.0
+
+def test_compare_iou_different(shape_matcher):
+    img1 = create_shape_image("square")
+    img2 = create_shape_image("circle")
+    
+    sim = shape_matcher._compare_iou(img1, img2)
+    assert 0.0 <= sim < 1.0
+
+def test_match_shapes_default_method_iou(shape_matcher):
+    img1 = create_shape_image("square")
+    img2 = create_shape_image("square")
+    
+    shape_matcher.config.match_method = "iou"
+    result = shape_matcher.match_shapes(img1, img2)
+    assert result.is_match is True
+    assert result.similarity_score == 1.0

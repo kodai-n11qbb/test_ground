@@ -10,9 +10,9 @@ def main():
     parser.add_argument('--dummy', type=str, default='imgs/dummy', help='比較対象ディレクトリ')
     parser.add_argument('--threshold', type=float, help='マッチング閾値')
     parser.add_argument('--output', type=str, default='output', help='出力ディレクトリ')
-    parser.add_argument('--method', type=str, default='diff', choices=['diff', 'matchshapes'], help='類似度計算方法')
-    parser.add_argument('--canny1', type=float, default=50.0, help='Canny閾値1')
-    parser.add_argument('--canny2', type=float, default=150.0, help='Canny閾値2')
+    parser.add_argument('--method', type=str, default='iou', choices=['diff', 'matchshapes', 'iou'], help='類似度計算方法')
+    parser.add_argument('--canny1', type=float, default=30.0, help='Canny閾値1')
+    parser.add_argument('--canny2', type=float, default=100.0, help='Canny閾値2')
     parser.add_argument('--no-photo-normalize', action='store_true', help='実写のCAD風正規化を無効化')
 
     args = parser.parse_args()

@@ -89,3 +89,42 @@ def test_detect_four_corners(normalizer):
     for p, exp in zip(ordered, [[30, 30], [170, 30], [170, 170], [30, 170]]):
         assert np.linalg.norm(p - exp) < 5.0
 
+
+def test_detect_four_corners_extremum(normalizer):
+    normalizer.config.photo_corner_detection_method = "extremum"
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    cv2.rectangle(mask, (30, 30), (170, 170), 255, -1)
+    
+    corners = normalizer._detect_four_corners(mask)
+    assert corners is not None
+    assert len(corners) == 4
+    ordered = normalizer._order_points(corners)
+    for p, exp in zip(ordered, [[30, 30], [170, 30], [170, 170], [30, 170]]):
+        assert np.linalg.norm(p - exp) < 5.0
+
+
+def test_detect_four_corners_rotated(normalizer):
+    normalizer.config.photo_corner_detection_method = "rotated"
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    cv2.rectangle(mask, (30, 30), (170, 170), 255, -1)
+    
+    corners = normalizer._detect_four_corners(mask)
+    assert corners is not None
+    assert len(corners) == 4
+
+
+def test_normalize_preserves_aspect_ratio(normalizer):
+    origin = _origin_cad(h=169, w=743)
+    photo = _solid_blue_photo(h=400, w=600)
+    out = normalizer.normalize(photo, origin)
+    assert out.shape == origin.shape
+
+def test_normalize_stretch_alignment_mode():
+    config = Config(photo_normalize_enabled=True, photo_alignment_mode="stretch")
+    normalizer = PhotoNormalizer(config)
+    origin = _origin_cad(h=100, w=200)
+    photo = _solid_blue_photo(h=400, w=800)
+    out = normalizer.normalize(photo, origin)
+    assert out.shape == origin.shape
+
+
