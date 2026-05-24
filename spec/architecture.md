@@ -78,11 +78,14 @@ class ResultExporter:
 ```
 
 ### 6. Web Viewer (api.py)
-**責務**: 検出結果の一覧表示と可視化を行うWebインターフェースの提供
+**責務**: 検出結果の一覧表示と可視化を行うWebインターフェースの提供、およびパラメータ調整用インターフェース（Tuner）の提供
 - FastAPIによるAPIバックエンドと静的ファイル（出力画像・JSON）の配信
-- HTML/JS/CSSによるフロントエンド画面
+- HTML/JS/CSSによるフロントエンド画面（結果閲覧画面・チューニング画面）
+- パラメータ調整時のプレビュー生成および設定保存（`config.json` への永続化）
+- 保存時にすべての本番画像ペアに対する照合パイプラインの再実行管理
 
 ## データモデル
+
 
 ### MatchResult
 ```python
@@ -110,6 +113,7 @@ pipeline = build_default_pipeline(Config(match_threshold=0.73))
 
 ## データフロー
 
+### 1. 本番一括バッチ処理フロー
 ```
 1. MatchPipeline / ImageLoader: 画像読み込み
    ↓
@@ -118,6 +122,38 @@ pipeline = build_default_pipeline(Config(match_threshold=0.73))
 3. MatchPipeline / ShapeMatcher: 前処理 → 輪郭抽出および重ね合わせアライメント調整 → 類似度算出
    ↓
 4. MatchPipeline / ResultExporter: 結果出力（輪郭同士を重ね合わせた画像 + JSON）
+```
+
+### 2. スライダー調整時のプレビューデータフロー
+```
+1. tuner.html: ユーザーがスライダーを操作（HSV/閾値）
+   ↓ (250ms デバウンス)
+2. tuner.html / api.py: POST /api/tuner/preview へパラメータを送信
+   ↓
+3. api.py / MatchPipeline: 代表テスト画像（ドトール写真）に対して、一時的なパラメータでメモリ上パイプライン処理を実行
+   ↓
+4. ResultExporter: プレビュー画像を output/preview/ ディレクトリへ出力・上書き
+   ↓
+5. api.py -> tuner.html: 各テスト画像のIoUスコアをJSONで返却
+   ↓
+6. tuner.html: 画像要素のsrc末尾にキャッシュバスター（?t=timestamp）を付与してリロードし、表示を瞬時に更新
+```
+
+### 3. 設定保存および本番パイプライン再実行のデータフロー
+```
+1. tuner.html: 「設定を保存（適用）」ボタンを押下
+   ↓
+2. tuner.html / api.py: POST /api/save-config を呼び出し
+   ↓
+3. api.py / Config: 送信されたパラメータを config.json に永続化保存し、アプリ内のグローバル Config を更新
+   ↓
+4. api.py / MatchPipeline: 本番用の全画像ペア（imgs/）に対して順次照合処理を実行
+   ↓
+5. ResultExporter: 結果ファイル（output/*_result.png / json）を新しい設定で上書き保存
+   ↓
+6. api.py -> tuner.html: 処理完了レスポンスを返却
+   ↓
+7. tuner.html: メインビューア画面（/）へリダイレクトし、新しい設定値での結果を表示
 ```
 
 ## 拡張ポイント

@@ -105,6 +105,21 @@ class Config:
     photo_normalize_enabled: bool = True
     photo_bottom_crop_ratio: float = 0.26
     photo_size_ratio_threshold: float = 1.5
+
+    # HSV マスク範囲パラメータ（新規追加）
+    hsv_lower1: list[int] = (90, 40, 30)
+    hsv_upper1: list[int] = (140, 255, 255)
+    hsv_lower2: list[int] = (100, 20, 20)
+    hsv_upper2: list[int] = (150, 255, 180)
+
+    @classmethod
+    def load_from_json(cls, filepath: str = "config.json") -> 'Config':
+        """config.jsonから設定をロードする。存在しなければデフォルト値を返す。"""
+        pass
+
+    def save_to_json(self, filepath: str = "config.json") -> None:
+        """現在のインスタンス状態をconfig.jsonに保存する。"""
+        pass
 ```
 
 ## 使用例
@@ -171,3 +186,50 @@ print(f"Match: {result.is_match}")
   ]
 }
 ```
+
+### `GET /tuner`
+HSVマスクなどのパラメータ調整を行う専用のWebUI画面（HTML）を返します。
+
+### `GET /api/config`
+現在の本番設定値（`Config`）のフィールド一覧をJSONで返します。
+
+### `POST /api/tuner/preview`
+スライダーから送られてきたHSVパラメータおよび閾値を受け取り、代表テスト画像（ドトール写真）に対する画像処理を一時的に実行します。結果のプレビュー画像を `output/preview/` に保存し、各テスト画像の判定スコアを返します。
+
+**リクエストボディ**:
+```json
+{
+  "hsv_lower1": [90, 40, 30],
+  "hsv_upper1": [140, 255, 255],
+  "hsv_lower2": [100, 20, 20],
+  "hsv_upper2": [150, 255, 180],
+  "match_threshold": 0.70
+}
+```
+
+**戻り値**:
+```json
+{
+  "status": "success",
+  "results": {
+    "実写直近(ドトール).jpg": { "score": 0.7263, "is_match": true },
+    "実写遠近(ドトール).jpg": { "score": 0.7996, "is_match": true },
+    "dummy(ドトール)入れ替えのみ_00_TEOPCIL.jpg": { "score": 0.4138, "is_match": false }
+  }
+}
+```
+
+### `POST /api/save-config`
+送られてきた設定パラメータを `config.json` に保存し、グローバル設定を更新します。また、本番ディレクトリ内の全画像ペアに対して再判定処理を実行し、結果を `output/` に書き出します。
+
+**リクエストボディ**:
+(※ `POST /api/tuner/preview` と同等)
+
+**戻り値**:
+```json
+{
+  "status": "success",
+  "message": "Configuration saved and pipeline re-run completed."
+}
+```
+
