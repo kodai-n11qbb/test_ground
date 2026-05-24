@@ -208,11 +208,11 @@ class PhotoNormalizer:
 
     def _blue_mask_hsv(self, img: np.ndarray) -> np.ndarray:
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lower = np.array([90, 40, 30], dtype=np.uint8)
-        upper = np.array([140, 255, 255], dtype=np.uint8)
+        lower = np.array(self.config.hsv_lower1, dtype=np.uint8)
+        upper = np.array(self.config.hsv_upper1, dtype=np.uint8)
         mask = cv2.inRange(hsv, lower, upper)
-        lower2 = np.array([100, 20, 20], dtype=np.uint8)
-        upper2 = np.array([150, 255, 180], dtype=np.uint8)
+        lower2 = np.array(self.config.hsv_lower2, dtype=np.uint8)
+        upper2 = np.array(self.config.hsv_upper2, dtype=np.uint8)
         mask2 = cv2.inRange(hsv, lower2, upper2)
         return cv2.bitwise_or(mask, mask2)
 

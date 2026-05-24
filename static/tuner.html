@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSV Parameter Tuner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 29, 49, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-color: #4f46e5;
+            --accent-glow: rgba(79, 70, 229, 0.4);
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        header {
+            max-width: 1400px;
+            margin: 0 auto 2rem auto;
+            text-align: center;
+            position: relative;
+        }
+
+        .back-link {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-sub);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--text-main);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        p.subtitle {
+            color: var(--text-sub);
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+        }
+
+        /* Glassmorphic card styling */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .card h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Parameter Sliders */
+        .param-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .param-group h3 {
+            font-size: 0.95rem;
+            color: #818cf8;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .slider-row {
+            margin-bottom: 0.8rem;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            margin-bottom: 0.3rem;
+        }
+
+        .slider-label span.val {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #1f2937;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-glow);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Action Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Results Display */
+        .results-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .image-pair-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .image-pair-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            color: #e0e7ff;
+        }
+
+        .image-pair-title span.badge {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .image-pair-title span.badge.fail {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .img-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .img-container span {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            text-align: center;
+        }
+
+        .img-container img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: #000;
+            aspect-ratio: 4.4 / 1;
+            object-fit: contain;
+            transition: transform 0.2s;
+        }
+
+        .img-container img:hover {
+            transform: scale(1.02);
+            cursor: zoom-in;
+        }
+
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 15, 25, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #4f46e5;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Interactive real-time pipeline status styles */
+        .results-view.updating {
+            opacity: 0.6;
+            transition: opacity 0.25s ease;
+        }
+
+        .updating-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #818cf8;
+            background: rgba(129, 140, 248, 0.15);
+            border: 1px solid rgba(129, 140, 248, 0.3);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            margin-left: 1rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            vertical-align: middle;
+            font-weight: 600;
+        }
+
+        .updating-indicator.show {
+            opacity: 1;
+        }
+
+        .updating-indicator .mini-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #818cf8;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .auto-run-note {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            text-align: center;
+            margin-top: 0.5rem;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/" class="back-link">← 結果一覧に戻る</a>
+        <h1>HSV Mask Parameter Tuner<span id="updating-indicator" class="updating-indicator"><span class="mini-spinner"></span>Updating...</span></h1>
+        <p class="subtitle">マスクパラメータの動的チューニング・最適設定の永続保存ツール</p>
+    </header>
+
+    <div class="container">
+        <!-- Parameters tuning panel -->
+        <div class="card">
+            <h2>パラメータ設定</h2>
+            
+            <form id="tuning-form" onsubmit="event.preventDefault(); saveConfig();">
+                <div class="param-group">
+                    <h3>Primary Mask (HSV 1)</h3>
+                    
+                    <div class="slider-row">
+                        <div class="slider-label"><span>H Min</span><span class="val" id="h1_min_val">90</span></div>
+                        <input type="range" name="h1_min" min="0" max="180" value="90" oninput="updateVal(this, 'h1_min_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>S Min</span><span class="val" id="s1_min_val">40</span></div>
+                        <input type="range" name="s1_min" min="0" max="255" value="40" oninput="updateVal(this, 's1_min_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>V Min</span><span class="val" id="v1_min_val">30</span></div>
+                        <input type="range" name="v1_min" min="0" max="255" value="30" oninput="updateVal(this, 'v1_min_val')">
+                    </div>
+                    
+                    <div class="slider-row" style="margin-top: 1rem;">
+                        <div class="slider-label"><span>H Max</span><span class="val" id="h1_max_val">140</span></div>
+                        <input type="range" name="h1_max" min="0" max="180" value="140" oninput="updateVal(this, 'h1_max_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>S Max</span><span class="val" id="s1_max_val">255</span></div>
+                        <input type="range" name="s1_max" min="0" max="255" value="255" oninput="updateVal(this, 's1_max_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>V Max</span><span class="val" id="v1_max_val">255</span></div>
+                        <input type="range" name="v1_max" min="0" max="255" value="255" oninput="updateVal(this, 'v1_max_val')">
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <h3>Secondary Mask (HSV 2)</h3>
+                    
+                    <div class="slider-row">
+                        <div class="slider-label"><span>H Min</span><span class="val" id="h2_min_val">100</span></div>
+                        <input type="range" name="h2_min" min="0" max="180" value="100" oninput="updateVal(this, 'h2_min_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>S Min</span><span class="val" id="s2_min_val">20</span></div>
+                        <input type="range" name="s2_min" min="0" max="255" value="20" oninput="updateVal(this, 's2_min_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>V Min</span><span class="val" id="v2_min_val">20</span></div>
+                        <input type="range" name="v2_min" min="0" max="255" value="20" oninput="updateVal(this, 'v2_min_val')">
+                    </div>
+                    
+                    <div class="slider-row" style="margin-top: 1rem;">
+                        <div class="slider-label"><span>H Max</span><span class="val" id="h2_max_val">150</span></div>
+                        <input type="range" name="h2_max" min="0" max="180" value="150" oninput="updateVal(this, 'h2_max_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>S Max</span><span class="val" id="s2_max_val">255</span></div>
+                        <input type="range" name="s2_max" min="0" max="255" value="255" oninput="updateVal(this, 's2_max_val')">
+                    </div>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>V Max</span><span class="val" id="v2_max_val">180</span></div>
+                        <input type="range" name="v2_max" min="0" max="255" value="180" oninput="updateVal(this, 'v2_max_val')">
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <h3>判定閾値</h3>
+                    <div class="slider-row">
+                        <div class="slider-label"><span>しきい値</span><span class="val" id="thresh_val">0.70</span></div>
+                        <input type="range" name="threshold" min="0.0" max="1.0" step="0.01" value="0.70" oninput="updateVal(this, 'thresh_val')">
+                    </div>
+                </div>
+
+                <button class="btn" type="submit">この値で設定を保存 (適用)</button>
+                <span class="auto-run-note">※スライダー値を変更すると自動でプレビューを更新します。保存するとすべての本番画像ペアに適用されます。</span>
+            </form>
+        </div>
+
+        <!-- Output images container -->
+        <div class="results-view">
+            <!-- Pair 1 -->
+            <div class="image-pair-card" id="pair-near">
+                <div class="image-pair-title">
+                    <span>実写直近 (ドトール)</span>
+                    <span class="badge" id="pair-near-badge">Match</span>
+                </div>
+                <div class="images-grid">
+                    <div class="img-container">
+                        <img id="pair-near-mask" src="/output/preview/実写直近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
+                        <span>Binary HSV Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-near-flat" src="/output/preview/実写直近(ドトール)_jpg_flat.png" alt="Flat CAD">
+                        <span>Warped & Flat Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-near-overlay" src="/output/preview/実写直近(ドトール)_jpg_overlay.png" alt="Overlay">
+                        <span>Overlay (Green=Ref, Red=Dummy)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pair 2 -->
+            <div class="image-pair-card" id="pair-far">
+                <div class="image-pair-title">
+                    <span>実写遠近 (ドトール)</span>
+                    <span class="badge" id="pair-far-badge">Match</span>
+                </div>
+                <div class="images-grid">
+                    <div class="img-container">
+                        <img id="pair-far-mask" src="/output/preview/実写遠近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
+                        <span>Binary HSV Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-far-flat" src="/output/preview/実写遠近(ドトール)_jpg_flat.png" alt="Flat CAD">
+                        <span>Warped & Flat Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-far-overlay" src="/output/preview/実写遠近(ドトール)_jpg_overlay.png" alt="Overlay">
+                        <span>Overlay (Green=Ref, Red=Dummy)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pair 3 -->
+            <div class="image-pair-card" id="pair-scrambled">
+                <div class="image-pair-title">
+                    <span>TEOPCIL (文字順ダミー)</span>
+                    <span class="badge fail" id="pair-scrambled-badge">Mismatch</span>
+                </div>
+                <div class="images-grid">
+                    <div class="img-container">
+                        <img id="pair-scrambled-mask" src="/output/preview/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_hsv_mask.png" alt="HSV Mask">
+                        <span>Binary HSV Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-scrambled-flat" src="/output/preview/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_flat.png" alt="Flat CAD">
+                        <span>Warped & Flat Mask</span>
+                    </div>
+                    <div class="img-container">
+                        <img id="pair-scrambled-overlay" src="/output/preview/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_overlay.png" alt="Overlay">
+                        <span>Overlay (Green=Ref, Red=Dummy)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay">
+        <div style="text-align: center;">
+            <div class="spinner" style="margin: 0 auto;"></div>
+            <p id="loading-text" style="margin-top: 1.5rem; font-weight: 600; font-size: 1.2rem;">本番判定パイプラインを実行中...</p>
+            <p style="margin-top: 0.5rem; color: var(--text-sub); font-size: 0.9rem;">すべての本番画像ペアに対して新しい設定を適用しています。数秒かかります。</p>
+        </div>
+    </div>
+
+    <script>
+        let debounceTimer = null;
+        let activeController = null;
+
+        function updateVal(slider, labelId) {
+            document.getElementById(labelId).innerText = slider.value;
+            
+            // Debounce preview rendering
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                runPreview();
+            }, 250);
+        }
+
+        async function initSliders() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const cfg = await response.json();
+                    
+                    // Set inputs
+                    setSliderValue('h1_min', 'h1_min_val', cfg.hsv_lower1[0]);
+                    setSliderValue('s1_min', 's1_min_val', cfg.hsv_lower1[1]);
+                    setSliderValue('v1_min', 'v1_min_val', cfg.hsv_lower1[2]);
+                    setSliderValue('h1_max', 'h1_max_val', cfg.hsv_upper1[0]);
+                    setSliderValue('s1_max', 's1_max_val', cfg.hsv_upper1[1]);
+                    setSliderValue('v1_max', 'v1_max_val', cfg.hsv_upper1[2]);
+                    
+                    setSliderValue('h2_min', 'h2_min_val', cfg.hsv_lower2[0]);
+                    setSliderValue('s2_min', 's2_min_val', cfg.hsv_lower2[1]);
+                    setSliderValue('v2_min', 'v2_min_val', cfg.hsv_lower2[2]);
+                    setSliderValue('h2_max', 'h2_max_val', cfg.hsv_upper2[0]);
+                    setSliderValue('s2_max', 's2_max_val', cfg.hsv_upper2[1]);
+                    setSliderValue('v2_max', 'v2_max_val', cfg.hsv_upper2[2]);
+                    
+                    setSliderValue('threshold', 'thresh_val', cfg.match_threshold);
+                }
+            } catch (err) {
+                console.error("Failed to load initial config:", err);
+            }
+            // Run initial preview
+            runPreview();
+        }
+
+        function setSliderValue(name, valId, value) {
+            const input = document.querySelector(`input[name="${name}"]`);
+            if (input) {
+                input.value = value;
+                document.getElementById(valId).innerText = value;
+            }
+        }
+
+        function getParamsFromForm() {
+            const form = document.getElementById('tuning-form');
+            const formData = new FormData(form);
+            return {
+                hsv_lower1: [
+                    parseInt(formData.get('h1_min')),
+                    parseInt(formData.get('s1_min')),
+                    parseInt(formData.get('v1_min'))
+                ],
+                hsv_upper1: [
+                    parseInt(formData.get('h1_max')),
+                    parseInt(formData.get('s1_max')),
+                    parseInt(formData.get('v1_max'))
+                ],
+                hsv_lower2: [
+                    parseInt(formData.get('h2_min')),
+                    parseInt(formData.get('s2_min')),
+                    parseInt(formData.get('v2_min'))
+                ],
+                hsv_upper2: [
+                    parseInt(formData.get('h2_max')),
+                    parseInt(formData.get('s2_max')),
+                    parseInt(formData.get('v2_max'))
+                ],
+                match_threshold: parseFloat(formData.get('threshold'))
+            };
+        }
+
+        async function runPreview() {
+            if (activeController) {
+                activeController.abort();
+            }
+            activeController = new AbortController();
+            const signal = activeController.signal;
+            
+            const indicator = document.getElementById('updating-indicator');
+            const resultsView = document.querySelector('.results-view');
+            
+            indicator.classList.add('show');
+            resultsView.classList.add('updating');
+            
+            const params = getParamsFromForm();
+            
+            try {
+                const response = await fetch('/api/tuner/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                    signal: signal
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    const t = Date.now();
+                    
+                    const updatePair = (id, baseFile, matchKey) => {
+                        document.getElementById(`${id}-mask`).src = `/output/preview/${baseFile}_hsv_mask.png?t=${t}`;
+                        document.getElementById(`${id}-flat`).src = `/output/preview/${baseFile}_flat.png?t=${t}`;
+                        document.getElementById(`${id}-overlay`).src = `/output/preview/${baseFile}_overlay.png?t=${t}`;
+                        
+                        const scoreInfo = data.results[matchKey];
+                        const badge = document.getElementById(`${id}-badge`);
+                        if (scoreInfo) {
+                            badge.innerText = `${scoreInfo.is_match ? 'Match' : 'Mismatch'} (IoU: ${scoreInfo.score.toFixed(4)})`;
+                            if (scoreInfo.is_match) {
+                                badge.className = 'badge';
+                            } else {
+                                badge.className = 'badge fail';
+                            }
+                        }
+                    };
+                    
+                    updatePair('pair-near', '実写直近(ドトール)_jpg', '実写直近(ドトール).jpg');
+                    updatePair('pair-far', '実写遠近(ドトール)_jpg', '実写遠近(ドトール).jpg');
+                    updatePair('pair-scrambled', 'dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg', 'dummy(ドトール)入れ替えのみ_00_TEOPCIL.jpg');
+                } else {
+                    console.error('Error generating preview: ' + data.detail);
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    return;
+                }
+                console.error('Preview connection error: ' + err.message);
+            } finally {
+                if (!signal.aborted) {
+                    indicator.classList.remove('show');
+                    resultsView.classList.remove('updating');
+                }
+            }
+        }
+
+        async function saveConfig() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.display = 'flex';
+            
+            const params = getParamsFromForm();
+            
+            try {
+                const response = await fetch('/api/save-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    // Redirect back to main viewer on success
+                    window.location.href = '/';
+                } else {
+                    alert('設定の保存およびパイプライン再実行に失敗しました: ' + data.detail);
+                    overlay.style.display = 'none';
+                }
+            } catch (err) {
+                alert('通信エラーが発生しました: ' + err.message);
+                overlay.style.display = 'none';
+            }
+        }
+
+        // Init on load
+        window.addEventListener('load', initSliders);
+    </script>
+</body>
+</html>

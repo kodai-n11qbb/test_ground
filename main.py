@@ -17,21 +17,26 @@ def main():
 
     args = parser.parse_args()
 
-    config_kwargs = {
-        'output_dir': args.output,
-        'canny_threshold1': args.canny1,
-        'canny_threshold2': args.canny2,
-    }
+    # まず config.json から設定をロードする
+    config = Config.load_from_json()
+
+    # CLI 引数で指定されたものがあれば上書きする
+    config.output_dir = args.output
+    config.origin_dir = args.origin
+    config.dummy_dir = args.dummy
+    config.canny_threshold1 = args.canny1
+    config.canny_threshold2 = args.canny2
     if args.threshold is not None:
-        config_kwargs['match_threshold'] = args.threshold
+        config.match_threshold = args.threshold
     if args.no_photo_normalize:
-        config_kwargs['photo_normalize_enabled'] = False
-    config = Config(**config_kwargs)
+        config.photo_normalize_enabled = False
+    if args.method:
+        config.match_method = args.method
 
     pipeline = build_default_pipeline(config)
 
-    print(f"Loading images from {args.origin} and {args.dummy}...")
-    pairs = pipeline.load_directory(args.origin, args.dummy)
+    print(f"Loading images from {config.origin_dir} and {config.dummy_dir}...")
+    pairs = pipeline.load_directory(config.origin_dir, config.dummy_dir)
     print(f"Found {len(pairs)} image pairs")
 
     results = []
