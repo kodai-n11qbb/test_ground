@@ -5,11 +5,11 @@ from dataclasses import dataclass
 class Config:
     # 前処理パラメータ
     grayscale: bool = True
-    gaussian_blur_kernel: int = 5
+    gaussian_blur_kernel: int = 7
     
     # Cannyエッジ検出パラメータ
-    canny_threshold1: float = 50.0
-    canny_threshold2: float = 150.0
+    canny_threshold1: float = 30.0
+    canny_threshold2: float = 100.0
     
     # 形状マッチング閾値（調整可能）
     match_threshold: float = 0.9  # この値以上ならOKと判定

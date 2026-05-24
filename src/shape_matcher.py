@@ -109,13 +109,17 @@ class ShapeMatcher:
         return hu_moments.flatten()
 
     def _compare_hu_moments(self, hu1: np.ndarray, hu2: np.ndarray) -> float:
-        """Huモーメント差分ベースの類似度（method=diff）。"""
+        """対数スケール（Log-scaled）を適用したHuモーメント差分類似度。"""
         if hu1 is None or hu2 is None:
             return 0.0
 
-        diff = np.abs(hu1 - hu2)
-        max_diff = np.max(diff) if np.max(diff) > 0 else 1.0
-        return float(1.0 - (np.mean(diff) / max_diff))
+        # 符号付き対数スケールに変換（極小値 1e-15 を加えて log(0) を回避）
+        hu1_log = -np.sign(hu1) * np.log10(np.abs(hu1) + 1e-15)
+        hu2_log = -np.sign(hu2) * np.log10(np.abs(hu2) + 1e-15)
+
+        diff = np.abs(hu1_log - hu2_log)
+        mean_diff = np.mean(diff)
+        return float(1.0 / (1.0 + 0.1 * mean_diff))
 
     def _compare_contours_match_shapes(self, contours1: list, contours2: list) -> float:
         """凸包輪郭の cv2.matchShapes による類似度（method=matchshapes）。"""

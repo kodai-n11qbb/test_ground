@@ -45,7 +45,7 @@
 - `origin_img`: 元データ画像
 - `dummy_img`: 比較対象画像
 - `method`: 類似度計算方法
-  - `"diff"`: Huモーメント差分ベース
+  - `"diff"`: 符号付き対数スケール化を適用したHuモーメント差分ベース
   - `"matchshapes"`: 凸包輪郭の `cv2.matchShapes`（I1距離 → `1/(1+d)`）
 
 **戻り値**: マッチング結果
@@ -89,11 +89,11 @@
 class Config:
     # 前処理パラメータ
     grayscale: bool = True
-    gaussian_blur_kernel: int = 5
+    gaussian_blur_kernel: int = 7
     
     # Cannyエッジ検出パラメータ
-    canny_threshold1: float = 50.0
-    canny_threshold2: float = 150.0
+    canny_threshold1: float = 30.0
+    canny_threshold2: float = 100.0
     
     # 形状マッチング閾値（調整可能）
     match_threshold: float = 0.9  # この値以上ならOKと判定

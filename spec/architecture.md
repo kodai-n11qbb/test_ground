@@ -56,7 +56,7 @@ class MatchPipeline:
 `pipeline_factory.build_default_pipeline(config)` が composition root 用の既定配線を提供する。
 
 ### 4. ShapeMatcher
-**責務**: 形状マッチングによる差分検出（位置不変）およびアライメント調整
+**責務**: 形状マッチングによる差分検出（位置不変、符号付き対数スケールHuモーメント比較によるスケール差補正）およびアライメント調整
 
 ```python
 class ShapeMatcher:
