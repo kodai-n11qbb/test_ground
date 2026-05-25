@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import glob
 import os
 import json
+import numpy as np
 from urllib.parse import quote, unquote
 
 from src.config import Config
@@ -78,8 +79,8 @@ def tuner_preview(params: TunerParams):
     for filename, dummy_path, origin_path in test_images:
         if not os.path.exists(origin_path) or not os.path.exists(dummy_path):
             continue
-        origin_img = cv2.imread(origin_path)
-        dummy_img = cv2.imread(dummy_path)
+        origin_img = cv2.imdecode(np.fromfile(origin_path, dtype=np.uint8), cv2.IMREAD_COLOR)
+        dummy_img = cv2.imdecode(np.fromfile(dummy_path, dtype=np.uint8), cv2.IMREAD_COLOR)
         
         needs_norm = preview_pipeline.normalizer.needs_normalization(dummy_img, origin_img)
         if needs_norm:
@@ -91,11 +92,11 @@ def tuner_preview(params: TunerParams):
         res.photo_normalized = needs_norm
         
         out_name = filename.replace('.', '_')
-        cv2.imwrite(f"output/preview/{out_name}_flat.png", flat_img)
+        cv2.imencode(".png", flat_img)[1].tofile(f"output/preview/{out_name}_flat.png")
         preview_pipeline.exporter.export_image(res, f"output/preview/{out_name}_overlay.png")
         
         hsv_mask = preview_pipeline.normalizer._blue_mask_hsv(flat_img)
-        cv2.imwrite(f"output/preview/{out_name}_hsv_mask.png", hsv_mask)
+        cv2.imencode(".png", hsv_mask)[1].tofile(f"output/preview/{out_name}_hsv_mask.png")
         
         results[filename] = {"score": res.similarity_score, "is_match": res.is_match}
         

@@ -13,6 +13,15 @@ def client():
     return TestClient(app)
 
 
+def save_image_robust(path, img):
+    import cv2
+    ext = os.path.splitext(path)[1]
+    result, nparr = cv2.imencode(ext, img)
+    if result:
+        with open(path, mode='wb') as f:
+            nparr.tofile(f)
+
+
 def test_result_image_serves_unicode_filename(client, tmp_path, monkeypatch):
     """日本語 id の結果画像を API 経由で取得できる。"""
     output_dir = tmp_path / "output"
@@ -77,12 +86,11 @@ def test_api_tuner_preview(client, tmp_path, monkeypatch):
 
     # Create dummy images with expected names
     import numpy as np
-    import cv2
     img = np.zeros((100, 440, 3), dtype=np.uint8)
-    cv2.imwrite(str(origin_dir / "POLITEC(ドトール).png"), img)
-    cv2.imwrite(str(dummy_dir / "実写直近(ドトール).jpg"), img)
-    cv2.imwrite(str(dummy_dir / "実写遠近(ドトール).jpg"), img)
-    cv2.imwrite(str(dummy_dir / "dummy(ドトール)入れ替えのみ_00_TEOPCIL.jpg"), img)
+    save_image_robust(str(origin_dir / "POLITEC(ドトール).png"), img)
+    save_image_robust(str(dummy_dir / "実写直近(ドトール).jpg"), img)
+    save_image_robust(str(dummy_dir / "実写遠近(ドトール).jpg"), img)
+    save_image_robust(str(dummy_dir / "dummy(ドトール)入れ替えのみ_00_TEOPCIL.jpg"), img)
 
     import api
     monkeypatch.setattr(api.config, "origin_dir", str(origin_dir))
@@ -108,6 +116,41 @@ def test_api_tuner_preview(client, tmp_path, monkeypatch):
     assert "実写直近(ドトール).jpg" in data["results"]
 
 
+def test_api_tuner_preview_missing_images(client, tmp_path, monkeypatch):
+    """テスト画像が一部または全部存在しない場合でも、APIが500にならず200を返し、空の結果を返す。"""
+    origin_dir = tmp_path / "origin"
+    dummy_dir = tmp_path / "dummy"
+    output_dir = tmp_path / "output"
+    origin_dir.mkdir()
+    dummy_dir.mkdir()
+    output_dir.mkdir()
+
+    # 画像を意図的に作成しない（テスト画像が欠損している状態）
+
+    import api
+    monkeypatch.setattr(api.config, "origin_dir", str(origin_dir))
+    monkeypatch.setattr(api.config, "dummy_dir", str(dummy_dir))
+    monkeypatch.setattr(api.config, "output_dir", str(output_dir))
+
+    payload = {
+        "hsv_lower1": [90, 40, 30],
+        "hsv_upper1": [140, 255, 255],
+        "hsv_lower2": [100, 20, 20],
+        "hsv_upper2": [150, 255, 180],
+        "match_threshold": 0.70
+    }
+    
+    os.makedirs(tmp_path / "output/preview", exist_ok=True)
+    monkeypatch.chdir(tmp_path)
+
+    res = client.post("/api/tuner/preview", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    # 結果が空であることを検証
+    assert len(data["results"]) == 0
+
+
 def test_api_save_config(client, tmp_path, monkeypatch):
     origin_dir = tmp_path / "origin"
     dummy_dir = tmp_path / "dummy"
@@ -117,10 +160,9 @@ def test_api_save_config(client, tmp_path, monkeypatch):
     output_dir.mkdir()
 
     import numpy as np
-    import cv2
     img = np.zeros((100, 440, 3), dtype=np.uint8)
-    cv2.imwrite(str(origin_dir / "テスト(ドトール).png"), img)
-    cv2.imwrite(str(dummy_dir / "テスト(ドトール).jpg"), img)
+    save_image_robust(str(origin_dir / "テスト(ドトール).png"), img)
+    save_image_robust(str(dummy_dir / "テスト(ドトール).jpg"), img)
 
     import api
     monkeypatch.setattr(api.config, "origin_dir", str(origin_dir))
