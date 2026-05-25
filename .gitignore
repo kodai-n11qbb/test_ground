@@ -1,4 +1,5 @@
 /output
 */output
 # /sandbox
+*.db
 /__pycache__
