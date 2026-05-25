@@ -304,6 +304,56 @@
             margin-top: 0.5rem;
             display: block;
         }
+
+        /* Tab switcher styling */
+        .tab-switcher {
+            max-width: 1400px;
+            margin: 0 auto 1.5rem auto;
+            display: flex;
+            gap: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 0.6rem 1.2rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            color: #818cf8;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.65rem;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #818cf8;
+            border-radius: 3px 3px 0 0;
+            box-shadow: 0 0 10px rgba(129, 140, 248, 0.6);
+        }
+
+        /* Camera live card specific */
+        .live-camera-view {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -312,6 +362,11 @@
         <h1>HSV Mask Parameter Tuner<span id="updating-indicator" class="updating-indicator"><span class="mini-spinner"></span>Updating...</span></h1>
         <p class="subtitle">Sandbox-isolated dynamic pipeline threshold optimization tool</p>
     </header>
+
+    <div class="tab-switcher">
+        <button id="tab-static" class="tab-btn active" onclick="switchTab('static')">静止画テスト (Static Tuning)</button>
+        <button id="tab-live" class="tab-btn" onclick="switchTab('live')">リアルタイムカメラ判定 (Live Camera)</button>
+    </div>
 
     <div class="container">
         <!-- Parameters tuning panel -->
@@ -392,70 +447,130 @@
             </form>
         </div>
 
-        <!-- Output images container -->
-        <div class="results-view">
-            <!-- Pair 1 -->
-            <div class="image-pair-card" id="pair-near">
-                <div class="image-pair-title">
-                    <span>実写直近 (ドトール)</span>
-                    <span class="badge" id="pair-near-badge">Match</span>
-                </div>
-                <div class="images-grid">
-                    <div class="img-container">
-                        <img id="pair-near-mask" src="/output/実写直近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
-                        <span>Binary HSV Mask</span>
+        <!-- Right column containing tabs -->
+        <div class="right-column">
+            <!-- Tab Content: Static Images -->
+            <div id="content-static" class="tab-pane">
+                <div class="results-view">
+                    <!-- Pair 1 -->
+                    <div class="image-pair-card" id="pair-near">
+                        <div class="image-pair-title">
+                            <span>実写直近 (ドトール)</span>
+                            <span class="badge" id="pair-near-badge">Match</span>
+                        </div>
+                        <div class="images-grid">
+                            <div class="img-container">
+                                <img id="pair-near-mask" src="/output/実写直近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
+                                <span>Binary HSV Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-near-flat" src="/output/実写直近(ドトール)_jpg_flat.png" alt="Flat CAD">
+                                <span>Warped & Flat Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-near-overlay" src="/output/実写直近(ドトール)_jpg_overlay.png" alt="Overlay">
+                                <span>Overlay (Green=Ref, Red=Dummy)</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="img-container">
-                        <img id="pair-near-flat" src="/output/実写直近(ドトール)_jpg_flat.png" alt="Flat CAD">
-                        <span>Warped & Flat Mask</span>
+
+                    <!-- Pair 2 -->
+                    <div class="image-pair-card" id="pair-far">
+                        <div class="image-pair-title">
+                            <span>実写遠近 (ドトール)</span>
+                            <span class="badge" id="pair-far-badge">Match</span>
+                        </div>
+                        <div class="images-grid">
+                            <div class="img-container">
+                                <img id="pair-far-mask" src="/output/実写遠近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
+                                <span>Binary HSV Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-far-flat" src="/output/実写遠近(ドトール)_jpg_flat.png" alt="Flat CAD">
+                                <span>Warped & Flat Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-far-overlay" src="/output/実写遠近(ドトール)_jpg_overlay.png" alt="Overlay">
+                                <span>Overlay (Green=Ref, Red=Dummy)</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="img-container">
-                        <img id="pair-near-overlay" src="/output/実写直近(ドトール)_jpg_overlay.png" alt="Overlay">
-                        <span>Overlay (Green=Ref, Red=Dummy)</span>
+
+                    <!-- Pair 3 -->
+                    <div class="image-pair-card" id="pair-scrambled">
+                        <div class="image-pair-title">
+                            <span>TEOPCIL (文字順ダミー)</span>
+                            <span class="badge fail" id="pair-scrambled-badge">Mismatch</span>
+                        </div>
+                        <div class="images-grid">
+                            <div class="img-container">
+                                <img id="pair-scrambled-mask" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_hsv_mask.png" alt="HSV Mask">
+                                <span>Binary HSV Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-scrambled-flat" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_flat.png" alt="Flat CAD">
+                                <span>Warped & Flat Mask</span>
+                            </div>
+                            <div class="img-container">
+                                <img id="pair-scrambled-overlay" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_overlay.png" alt="Overlay">
+                                <span>Overlay (Green=Ref, Red=Dummy)</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Pair 2 -->
-            <div class="image-pair-card" id="pair-far">
-                <div class="image-pair-title">
-                    <span>実写遠近 (ドトール)</span>
-                    <span class="badge" id="pair-far-badge">Match</span>
-                </div>
-                <div class="images-grid">
-                    <div class="img-container">
-                        <img id="pair-far-mask" src="/output/実写遠近(ドトール)_jpg_hsv_mask.png" alt="HSV Mask">
-                        <span>Binary HSV Mask</span>
+            <!-- Tab Content: Live Camera -->
+            <div id="content-live" class="tab-pane" style="display: none;">
+                <div class="card live-camera-view">
+                    <div class="live-camera-header" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <h2 style="margin: 0; padding: 0; border: none; font-size: 1.4rem;">リアルタイムカメラ判定</h2>
+                        <div class="camera-controls" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+                            <label for="live-origin-select" style="font-size: 0.9rem; color: var(--text-sub); font-weight: 600;">基準画像:</label>
+                            <select id="live-origin-select" style="background: #111827; color: white; border: 1px solid var(--border-color); padding: 0.5rem 0.8rem; border-radius: 8px; outline: none; font-size: 0.9rem; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <option value="POLITEC(ドトール).png" selected>POLITEC(ドトール).png</option>
+                                <option value="Politec College（ブリヂストン）.png">Politec College（ブリヂストン）.png</option>
+                                <option value="能開大(吉野家).png">能開大(吉野家).png</option>
+                            </select>
+                            <button id="btn-camera" class="btn" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.9rem; margin: 0;" onclick="toggleCamera()">カメラ起動</button>
+                        </div>
                     </div>
-                    <div class="img-container">
-                        <img id="pair-far-flat" src="/output/実写遠近(ドトール)_jpg_flat.png" alt="Flat CAD">
-                        <span>Warped & Flat Mask</span>
-                    </div>
-                    <div class="img-container">
-                        <img id="pair-far-overlay" src="/output/実写遠近(ドトール)_jpg_overlay.png" alt="Overlay">
-                        <span>Overlay (Green=Ref, Red=Dummy)</span>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Pair 3 -->
-            <div class="image-pair-card" id="pair-scrambled">
-                <div class="image-pair-title">
-                    <span>TEOPCIL (文字順ダミー)</span>
-                    <span class="badge fail" id="pair-scrambled-badge">Mismatch</span>
-                </div>
-                <div class="images-grid">
-                    <div class="img-container">
-                        <img id="pair-scrambled-mask" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_hsv_mask.png" alt="HSV Mask">
-                        <span>Binary HSV Mask</span>
-                    </div>
-                    <div class="img-container">
-                        <img id="pair-scrambled-flat" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_flat.png" alt="Flat CAD">
-                        <span>Warped & Flat Mask</span>
-                    </div>
-                    <div class="img-container">
-                        <img id="pair-scrambled-overlay" src="/output/dummy(ドトール)入れ替えのみ_00_TEOPCIL_jpg_overlay.png" alt="Overlay">
-                        <span>Overlay (Green=Ref, Red=Dummy)</span>
+                    <div style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 2rem; min-height: 400px;">
+                        <!-- Left: Live Video Preview -->
+                        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                            <div style="position: relative; width: 100%; aspect-ratio: 4/3; background: #070b12; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                                <video id="webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none;"></video>
+                                <div id="camera-placeholder" style="color: var(--text-sub); text-align: center; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                                    <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity: 0.4;">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 47.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                                    </svg>
+                                    <p style="font-weight: 600; font-size: 0.95rem;">カメラがオフです</p>
+                                    <span style="font-size: 0.8rem; opacity: 0.7;">「カメラ起動」ボタンをクリックして開始してください。</span>
+                                </div>
+                            </div>
+                            <div class="image-pair-title" style="width: 100%; text-align: center; display: flex; justify-content: center; align-items: center; gap: 0.8rem; background: rgba(255,255,255,0.02); padding: 0.6rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <span style="font-size: 1rem; color: #a5b4fc; font-weight: 600;">判定結果:</span>
+                                <span class="badge" id="live-badge" style="font-size: 1rem; padding: 0.3rem 1rem;">Ready</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Processing Results -->
+                        <div class="images-grid" style="grid-template-columns: 1fr; gap: 1rem; align-content: start;">
+                            <div class="img-container" style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
+                                <span style="text-align: left; font-weight: 600; color: #818cf8; font-size: 0.9rem; margin-bottom: 0.4rem; display: block;">1. Binary HSV Mask</span>
+                                <img id="live-mask" src="" alt="HSV Mask" style="width: 100%; height: auto; min-height: 90px; max-height: 120px; object-fit: contain; background: #000; border-radius: 6px; border: 1px solid var(--border-color);">
+                            </div>
+                            <div class="img-container" style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
+                                <span style="text-align: left; font-weight: 600; color: #818cf8; font-size: 0.9rem; margin-bottom: 0.4rem; display: block;">2. Warped & Flat Mask</span>
+                                <img id="live-flat" src="" alt="Flat CAD" style="width: 100%; height: auto; min-height: 90px; max-height: 120px; object-fit: contain; background: #000; border-radius: 6px; border: 1px solid var(--border-color);">
+                            </div>
+                            <div class="img-container" style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
+                                <span style="text-align: left; font-weight: 600; color: #818cf8; font-size: 0.9rem; margin-bottom: 0.4rem; display: block;">3. Overlay (Green=Ref, Red=Webcam)</span>
+                                <img id="live-overlay" src="" alt="Overlay" style="width: 100%; height: auto; min-height: 90px; max-height: 120px; object-fit: contain; background: #000; border-radius: 6px; border: 1px solid var(--border-color);">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -472,6 +587,17 @@
     <script>
         let debounceTimer = null;
         let activeController = null;
+        let currentTab = 'static'; // 'static' or 'live'
+        let isCameraActive = false;
+        let cameraStream = null;
+        let liveTimer = null;
+        let liveController = null;
+        
+        const video = document.getElementById('webcam');
+        const placeholder = document.getElementById('camera-placeholder');
+        const btnCamera = document.getElementById('btn-camera');
+        const hiddenCanvas = document.createElement('canvas');
+        const hiddenContext = hiddenCanvas.getContext('2d');
 
         function updateVal(slider, labelId) {
             document.getElementById(labelId).innerText = slider.value;
@@ -479,11 +605,170 @@
             // Debounce pipeline execution on slider change
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-                runPipeline();
+                if (currentTab === 'static') {
+                    runPipeline();
+                }
             }, 250); // 250ms delay
         }
 
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            if (tabId === 'static') {
+                document.getElementById('content-static').style.display = 'block';
+                document.getElementById('content-live').style.display = 'none';
+                if (isCameraActive) {
+                    stopCamera();
+                }
+                runPipeline();
+            } else {
+                document.getElementById('content-static').style.display = 'none';
+                document.getElementById('content-live').style.display = 'block';
+            }
+        }
+
+        async function toggleCamera() {
+            if (isCameraActive) {
+                stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                video.srcObject = cameraStream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                btnCamera.innerText = 'カメラ停止';
+                btnCamera.style.background = 'linear-gradient(135deg, #ef4444, #f87171)';
+                btnCamera.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)';
+                isCameraActive = true;
+                
+                // Clear any leftover images
+                document.getElementById('live-mask').src = '';
+                document.getElementById('live-flat').src = '';
+                document.getElementById('live-overlay').src = '';
+                document.getElementById('live-badge').innerText = 'Starting...';
+                document.getElementById('live-badge').className = 'badge';
+
+                startLiveProcessing();
+            } catch (err) {
+                alert('カメラへのアクセスに失敗しました: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            video.srcObject = null;
+            video.style.display = 'none';
+            placeholder.style.display = 'flex';
+            btnCamera.innerText = 'カメラ起動';
+            btnCamera.style.background = 'linear-gradient(135deg, #4f46e5, #6366f1)';
+            btnCamera.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.4)';
+            isCameraActive = false;
+            
+            if (liveTimer) {
+                clearTimeout(liveTimer);
+                liveTimer = null;
+            }
+            if (liveController) {
+                liveController.abort();
+                liveController = null;
+            }
+            
+            document.getElementById('live-badge').innerText = 'Ready';
+            document.getElementById('live-badge').className = 'badge';
+            document.getElementById('live-mask').src = '';
+            document.getElementById('live-flat').src = '';
+            document.getElementById('live-overlay').src = '';
+        }
+
+        function startLiveProcessing() {
+            const processFrame = async () => {
+                if (!isCameraActive) return;
+                
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    hiddenCanvas.width = video.videoWidth;
+                    hiddenCanvas.height = video.videoHeight;
+                    
+                    // Mirror image to make it look like a mirror reflection (natural for users)
+                    hiddenContext.save();
+                    hiddenContext.translate(hiddenCanvas.width, 0);
+                    hiddenContext.scale(-1, 1);
+                    hiddenContext.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                    hiddenContext.restore();
+                    
+                    const base64Img = hiddenCanvas.toDataURL('image/jpeg', 0.7);
+                    
+                    const form = document.getElementById('tuning-form');
+                    const formData = new FormData(form);
+                    
+                    const params = {
+                        image: base64Img,
+                        lower1: `${formData.get('h1_min')},${formData.get('s1_min')},${formData.get('v1_min')}`,
+                        upper1: `${formData.get('h1_max')},${formData.get('s1_max')},${formData.get('v1_max')}`,
+                        lower2: `${formData.get('h2_min')},${formData.get('s2_min')},${formData.get('v2_min')}`,
+                        upper2: `${formData.get('h2_max')},${formData.get('s2_max')},${formData.get('v2_max')}`,
+                        threshold: parseFloat(formData.get('threshold')),
+                        origin_name: document.getElementById('live-origin-select').value
+                    };
+                    
+                    if (liveController) {
+                        liveController.abort();
+                    }
+                    liveController = new AbortController();
+                    const signal = liveController.signal;
+                    
+                    try {
+                        const response = await fetch('/api/live', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(params),
+                            signal: signal
+                        });
+                        
+                        const data = await response.json();
+                        if (response.ok && isCameraActive && !signal.aborted) {
+                            document.getElementById('live-mask').src = data.hsv_mask;
+                            document.getElementById('live-flat').src = data.flat_img;
+                            document.getElementById('live-overlay').src = data.overlay_img;
+                            
+                            const badge = document.getElementById('live-badge');
+                            badge.innerText = `${data.is_match ? 'Match' : 'Mismatch'} (IoU: ${data.similarity_score.toFixed(4)})`;
+                            if (data.is_match) {
+                                badge.className = 'badge';
+                            } else {
+                                badge.className = 'badge fail';
+                            }
+                        }
+                    } catch (err) {
+                        if (err.name !== 'AbortError') {
+                            console.error('Live camera error:', err);
+                        }
+                    }
+                }
+                
+                if (isCameraActive) {
+                    liveTimer = setTimeout(processFrame, 250); // 4 FPS
+                }
+            };
+            
+            liveTimer = setTimeout(processFrame, 250);
+        }
+
         async function runPipeline() {
+            if (currentTab !== 'static') return;
+            
             // Cancel any in-flight request
             if (activeController) {
                 activeController.abort();
@@ -518,7 +803,6 @@
                 
                 const data = await response.json();
                 if (response.ok) {
-                    // Update images with timestamp to reload without cache
                     const t = Date.now();
                     
                     const updatePair = (id, baseFile, matchKey) => {
@@ -545,7 +829,6 @@
                 }
             } catch (err) {
                 if (err.name === 'AbortError') {
-                    // Ignore aborted request errors
                     return;
                 }
                 alert('Connection error: ' + err.message);
@@ -557,7 +840,6 @@
             }
         }
         
-        // Initial run to load default values
         window.addEventListener('load', () => {
             runPipeline();
         });

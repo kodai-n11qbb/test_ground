@@ -4,7 +4,9 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/Users/abekoudai/Desktop/test_ground")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 
 from src.config import Config
 from src.pipeline_factory import build_default_pipeline
