@@ -195,7 +195,7 @@ def main():
     
     run_tuning_pipeline(hsv_lower1, hsv_upper1, hsv_lower2, hsv_upper2, args.threshold)
 
-def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv_upper2, threshold):
+def run_single_frame_pipeline(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv_upper2, threshold):
     config = Config(
         canny_threshold1=30.0,
         canny_threshold2=100.0,
@@ -218,6 +218,8 @@ def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv
     pipeline.normalizer._blue_mask_hsv = custom_blue_mask_hsv
     
     def custom_compare_iou(origin_img, dummy_img):
+        if origin_img is None:
+            return 0.0
         h, w = origin_img.shape[:2]
         dummy_resized = dummy_img
         if dummy_img.shape[:2] != (h, w):
@@ -239,6 +241,24 @@ def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv
     pipeline.matcher._compare_iou = custom_compare_iou
     
     def custom_match_shapes(origin_img, dummy_img, method=None):
+        from src.models import MatchResult
+        if origin_img is None:
+            dummy_processed = pipeline.matcher._preprocess(dummy_img)
+            dummy_contours = pipeline.matcher._extract_contours(dummy_processed)
+            return MatchResult(
+                similarity_score=0.0,
+                is_match=False,
+                origin_path="",
+                dummy_path="",
+                hu_moments_origin=np.zeros(7),
+                hu_moments_dummy=np.zeros(7),
+                diff_mask=np.zeros_like(dummy_processed),
+                origin_img=None,
+                dummy_img=dummy_img,
+                origin_contours=None,
+                dummy_contours=dummy_contours
+            )
+            
         origin_processed = pipeline.matcher._preprocess(origin_img)
         dummy_processed = pipeline.matcher._preprocess(dummy_img)
         origin_contours = pipeline.matcher._extract_contours(origin_processed)
@@ -255,7 +275,6 @@ def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv
         gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
         _, diff_mask = cv2.threshold(gray_diff, 30, 255, cv2.THRESH_BINARY)
         
-        from src.models import MatchResult
         return MatchResult(
             similarity_score=similarity,
             is_match=is_match,
@@ -272,50 +291,56 @@ def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv
         
     pipeline.matcher.match_shapes = custom_match_shapes
     
-    needs_norm = max(frame.shape[:2]) > max(origin.shape[:2]) * config.photo_size_ratio_threshold
-    
-    if needs_norm:
-        cropped = pipeline.normalizer._crop_letter_roi(frame)
-        mask = pipeline.normalizer._extract_letter_mask(cropped)
-        oh, ow = origin.shape[:2]
+    if origin is not None:
+        needs_norm = max(frame.shape[:2]) > max(origin.shape[:2]) * config.photo_size_ratio_threshold
         
-        origin_gray = cv2.cvtColor(origin, cv2.COLOR_BGR2GRAY)
-        _, origin_mask = cv2.threshold(origin_gray, 200, 255, cv2.THRESH_BINARY_INV)
-        ys_orig, xs_orig = np.where(origin_mask > 0)
-        if len(xs_orig) > 0:
-            ox0, ox1 = int(xs_orig.min()), int(xs_orig.max())
-            oy0, oy1 = int(ys_orig.min()), int(ys_orig.max())
-        else:
-            ox0, oy0, ox1, oy1 = 0, 0, ow - 1, oh - 1
+        if needs_norm:
+            cropped = pipeline.normalizer._crop_letter_roi(frame)
+            mask = pipeline.normalizer._extract_letter_mask(cropped)
+            oh, ow = origin.shape[:2]
             
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        all_pts = [c for c in contours if cv2.contourArea(c) > 10]
-        if not all_pts:
+            origin_gray = cv2.cvtColor(origin, cv2.COLOR_BGR2GRAY)
+            _, origin_mask = cv2.threshold(origin_gray, 200, 255, cv2.THRESH_BINARY_INV)
+            ys_orig, xs_orig = np.where(origin_mask > 0)
+            if len(xs_orig) > 0:
+                ox0, ox1 = int(xs_orig.min()), int(xs_orig.max())
+                oy0, oy1 = int(ys_orig.min()), int(ys_orig.max())
+            else:
+                ox0, oy0, ox1, oy1 = 0, 0, ow - 1, oh - 1
+                
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            all_pts = [c for c in contours if cv2.contourArea(c) > 10]
+            if not all_pts:
+                flat_img = frame
+            else:
+                merged_pts = np.vstack(all_pts)
+                hull = cv2.convexHull(merged_pts)
+                rect = cv2.minAreaRect(hull)
+                corners_rotated = pipeline.normalizer._order_points(np.array(cv2.boxPoints(rect), dtype=np.float32))
+                
+                dst_stretch = np.array([
+                    [ox0, oy0],
+                    [ox1, oy0],
+                    [ox1, oy1],
+                    [ox0, oy1]
+                ], dtype=np.float32)
+                
+                M = cv2.getPerspectiveTransform(corners_rotated, dst_stretch)
+                warped = cv2.warpPerspective(cropped, M, (ow, oh), borderValue=(255, 255, 255))
+                warped_mask = custom_blue_mask_hsv(warped)
+                flat_img = pipeline.normalizer._mask_to_flat_cad(warped_mask)
+        else:
             flat_img = frame
-        else:
-            merged_pts = np.vstack(all_pts)
-            hull = cv2.convexHull(merged_pts)
-            rect = cv2.minAreaRect(hull)
-            corners_rotated = pipeline.normalizer._order_points(np.array(cv2.boxPoints(rect), dtype=np.float32))
             
-            dst_stretch = np.array([
-                [ox0, oy0],
-                [ox1, oy0],
-                [ox1, oy1],
-                [ox0, oy1]
-            ], dtype=np.float32)
-            
-            M = cv2.getPerspectiveTransform(corners_rotated, dst_stretch)
-            warped = cv2.warpPerspective(cropped, M, (ow, oh), borderValue=(255, 255, 255))
-            warped_mask = custom_blue_mask_hsv(warped)
-            flat_img = pipeline.normalizer._mask_to_flat_cad(warped_mask)
+        res = pipeline.matcher.match_shapes(origin, flat_img)
+        res.photo_normalized = needs_norm
+        res.chosen_method = "rotated"
     else:
         flat_img = frame
+        res = pipeline.matcher.match_shapes(None, flat_img)
+        res.photo_normalized = False
+        res.chosen_method = "none"
         
-    res = pipeline.matcher.match_shapes(origin, flat_img)
-    res.photo_normalized = needs_norm
-    res.chosen_method = "rotated"
-    
     # Generate in-memory overlay
     if res.origin_img is not None and res.dummy_img is not None:
         blend = cv2.addWeighted(res.origin_img, 0.5, res.dummy_img, 0.5, 0)
@@ -325,7 +350,9 @@ def run_single_live_frame(frame, origin, hsv_lower1, hsv_upper1, hsv_lower2, hsv
             cv2.drawContours(blend, res.dummy_contours, -1, (0, 0, 255), 2)
         overlay_img = blend
     else:
-        overlay_img = np.zeros((200, 400, 3), dtype=np.uint8)
+        overlay_img = frame.copy()
+        if res.dummy_contours is not None:
+            cv2.drawContours(overlay_img, res.dummy_contours, -1, (0, 0, 255), 2)
         
     hsv_mask = custom_blue_mask_hsv(flat_img)
     

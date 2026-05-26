@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "sandbox"))
 
-from sandbox.test_hsv_tuning import run_tuning_pipeline, run_single_live_frame, robust_imread
+from sandbox.test_hsv_tuning import run_tuning_pipeline, run_single_frame_pipeline, robust_imread
 
 app = FastAPI(title="HSV Mask Tuner API (Sandbox)")
 
@@ -53,7 +53,7 @@ def run_pipeline(params: PipelineParams):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class LiveParams(BaseModel):
+class FrameParams(BaseModel):
     image: str
     lower1: str
     upper1: str
@@ -62,8 +62,8 @@ class LiveParams(BaseModel):
     threshold: float
     origin_name: str
 
-@app.post("/api/live")
-def run_live_pipeline(params: LiveParams):
+@app.post("/api/process-frame")
+def process_frame(params: FrameParams):
     try:
         def parse_csv(s):
             return [int(x) for x in s.split(',')]
@@ -82,15 +82,18 @@ def run_live_pipeline(params: LiveParams):
             raise HTTPException(status_code=400, detail="Invalid image data")
             
         # Load origin (reference) image
-        origin_path = ROOT / "imgs" / "origin" / params.origin_name
-        if not origin_path.exists():
-            raise HTTPException(status_code=404, detail=f"Reference image {params.origin_name} not found")
-        origin_img = robust_imread(origin_path)
-        if origin_img is None:
-            raise HTTPException(status_code=400, detail="Could not load reference image")
+        if params.origin_name in ("none", "", None):
+            origin_img = None
+        else:
+            origin_path = ROOT / "imgs" / "origin" / params.origin_name
+            if not origin_path.exists():
+                raise HTTPException(status_code=404, detail=f"Reference image {params.origin_name} not found")
+            origin_img = robust_imread(origin_path)
+            if origin_img is None:
+                raise HTTPException(status_code=400, detail="Could not load reference image")
             
         # Run pipeline
-        results = run_single_live_frame(
+        results = run_single_frame_pipeline(
             frame, origin_img,
             hsv_lower1, hsv_upper1,
             hsv_lower2, hsv_upper2,

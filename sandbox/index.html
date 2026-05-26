@@ -354,6 +354,30 @@
             flex-direction: column;
             gap: 1.5rem;
         }
+
+        /* Dropzone styling */
+        .dropzone {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #070b12;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px dashed var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .dropzone.dragover {
+            border-color: #818cf8;
+            background: rgba(129, 140, 248, 0.08);
+            box-shadow: inset 0 0 20px rgba(129, 140, 248, 0.2), 0 0 15px rgba(129, 140, 248, 0.2);
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body>
@@ -364,8 +388,8 @@
     </header>
 
     <div class="tab-switcher">
-        <button id="tab-static" class="tab-btn active" onclick="switchTab('static')">静止画テスト (Static Tuning)</button>
-        <button id="tab-live" class="tab-btn" onclick="switchTab('live')">リアルタイムカメラ判定 (Live Camera)</button>
+        <button id="tab-static" class="tab-btn active" onclick="switchTab('static')">プリセット検証 (Preset Images)</button>
+        <button id="tab-live" class="tab-btn" onclick="switchTab('live')">カメラ・画像ファイル判定 (Camera & Custom Image)</button>
     </div>
 
     <div class="container">
@@ -524,30 +548,35 @@
             <div id="content-live" class="tab-pane" style="display: none;">
                 <div class="card live-camera-view">
                     <div class="live-camera-header" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                        <h2 style="margin: 0; padding: 0; border: none; font-size: 1.4rem;">リアルタイムカメラ判定</h2>
+                        <h2 style="margin: 0; padding: 0; border: none; font-size: 1.4rem;">カメラ・画像ファイル判定</h2>
                         <div class="camera-controls" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
                             <label for="live-origin-select" style="font-size: 0.9rem; color: var(--text-sub); font-weight: 600;">基準画像:</label>
-                            <select id="live-origin-select" style="background: #111827; color: white; border: 1px solid var(--border-color); padding: 0.5rem 0.8rem; border-radius: 8px; outline: none; font-size: 0.9rem; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <select id="live-origin-select" onchange="onCustomFrameOriginChange()" style="background: #111827; color: white; border: 1px solid var(--border-color); padding: 0.5rem 0.8rem; border-radius: 8px; outline: none; font-size: 0.9rem; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <option value="none">基準画像なし</option>
                                 <option value="POLITEC(ドトール).png" selected>POLITEC(ドトール).png</option>
                                 <option value="Politec College（ブリヂストン）.png">Politec College（ブリヂストン）.png</option>
                                 <option value="能開大(吉野家).png">能開大(吉野家).png</option>
                             </select>
                             <button id="btn-camera" class="btn" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.9rem; margin: 0;" onclick="toggleCamera()">カメラ起動</button>
+                            <button id="btn-clear-dropped" class="btn" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.9rem; margin: 0; background: #374151; display: none;" onclick="clearDroppedImage()">画像クリア</button>
                         </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 2rem; min-height: 400px;">
-                        <!-- Left: Live Video Preview -->
+                        <!-- Left: Live Video / Drop Preview -->
                         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                            <div style="position: relative; width: 100%; aspect-ratio: 4/3; background: #070b12; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                            <div id="live-preview-container" class="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="triggerFileInput()">
+                                <input type="file" id="file-input" style="display: none;" accept="image/*" onchange="handleFileSelect(event)">
                                 <video id="webcam" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none;"></video>
-                                <div id="camera-placeholder" style="color: var(--text-sub); text-align: center; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                                <img id="dropped-image" style="width: 100%; height: 100%; object-fit: contain; display: none;" alt="Dropped test frame">
+                                <div id="camera-placeholder" style="color: var(--text-sub); text-align: center; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.8rem; pointer-events: none;">
                                     <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity: 0.4;">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 47.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
                                     </svg>
                                     <p style="font-weight: 600; font-size: 0.95rem;">カメラがオフです</p>
-                                    <span style="font-size: 0.8rem; opacity: 0.7;">「カメラ起動」ボタンをクリックして開始してください。</span>
+                                    <span style="font-size: 0.8rem; opacity: 0.7;">「カメラ起動」をクリックして開始</span>
+                                    <span style="font-size: 0.75rem; opacity: 0.5; border: 1px dashed rgba(255, 255, 255, 0.15); padding: 0.4rem 0.8rem; border-radius: 6px; background: rgba(0, 0, 0, 0.2); margin-top: 0.4rem;">または静止画ファイルをドロップ / クリックしてアップロード</span>
                                 </div>
                             </div>
                             <div class="image-pair-title" style="width: 100%; text-align: center; display: flex; justify-content: center; align-items: center; gap: 0.8rem; background: rgba(255,255,255,0.02); padding: 0.6rem; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -592,6 +621,7 @@
         let cameraStream = null;
         let liveTimer = null;
         let liveController = null;
+        let droppedBase64 = null;
         
         const video = document.getElementById('webcam');
         const placeholder = document.getElementById('camera-placeholder');
@@ -607,6 +637,8 @@
             debounceTimer = setTimeout(() => {
                 if (currentTab === 'static') {
                     runPipeline();
+                } else if (currentTab === 'live' && droppedBase64) {
+                    processCustomImage();
                 }
             }, 250); // 250ms delay
         }
@@ -626,6 +658,9 @@
             } else {
                 document.getElementById('content-static').style.display = 'none';
                 document.getElementById('content-live').style.display = 'block';
+                if (droppedBase64) {
+                    processCustomImage();
+                }
             }
         }
 
@@ -639,6 +674,9 @@
 
         async function startCamera() {
             try {
+                if (droppedBase64) {
+                    clearDroppedImage();
+                }
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
@@ -693,6 +731,144 @@
             document.getElementById('live-overlay').src = '';
         }
 
+        function triggerFileInput() {
+            if (!isCameraActive) {
+                document.getElementById('file-input').click();
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            if (isCameraActive) return;
+            document.getElementById('live-preview-container').classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            document.getElementById('live-preview-container').classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('live-preview-container').classList.remove('dragover');
+            if (isCameraActive) return;
+
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                loadImageFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                loadImageFile(files[0]);
+            }
+        }
+
+        function loadImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('画像ファイルを選択してください。');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                droppedBase64 = event.target.result;
+                
+                const img = document.getElementById('dropped-image');
+                img.src = droppedBase64;
+                img.style.display = 'block';
+                
+                video.style.display = 'none';
+                placeholder.style.display = 'none';
+                
+                document.getElementById('btn-clear-dropped').style.display = 'block';
+                
+                processCustomImage();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function onCustomFrameOriginChange() {
+            if (droppedBase64) {
+                processCustomImage();
+            }
+        }
+
+        async function processCustomImage() {
+            if (!droppedBase64) return;
+            
+            const form = document.getElementById('tuning-form');
+            const formData = new FormData(form);
+            
+            const params = {
+                image: droppedBase64,
+                lower1: `${formData.get('h1_min')},${formData.get('s1_min')},${formData.get('v1_min')}`,
+                upper1: `${formData.get('h1_max')},${formData.get('s1_max')},${formData.get('v1_max')}`,
+                lower2: `${formData.get('h2_min')},${formData.get('s2_min')},${formData.get('v2_min')}`,
+                upper2: `${formData.get('h2_max')},${formData.get('s2_max')},${formData.get('v2_max')}`,
+                threshold: parseFloat(formData.get('threshold')),
+                origin_name: document.getElementById('live-origin-select').value
+            };
+            
+            const badge = document.getElementById('live-badge');
+            badge.innerText = 'Processing...';
+            badge.className = 'badge';
+            
+            if (liveController) {
+                liveController.abort();
+            }
+            liveController = new AbortController();
+            const signal = liveController.signal;
+            
+            try {
+                const response = await fetch('/api/process-frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                    signal: signal
+                });
+                
+                const data = await response.json();
+                if (response.ok && !signal.aborted) {
+                    document.getElementById('live-mask').src = data.hsv_mask;
+                    document.getElementById('live-flat').src = data.flat_img;
+                    document.getElementById('live-overlay').src = data.overlay_img;
+                    
+                    badge.innerText = `${data.is_match ? 'Match' : 'Mismatch'} (IoU: ${data.similarity_score.toFixed(4)})`;
+                    if (data.is_match) {
+                        badge.className = 'badge';
+                    } else {
+                        badge.className = 'badge fail';
+                    }
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Custom image processing error:', err);
+                }
+            }
+        }
+
+        function clearDroppedImage() {
+            droppedBase64 = null;
+            document.getElementById('file-input').value = '';
+            
+            const img = document.getElementById('dropped-image');
+            img.src = '';
+            img.style.display = 'none';
+            
+            video.style.display = 'none';
+            placeholder.style.display = 'flex';
+            
+            document.getElementById('btn-clear-dropped').style.display = 'none';
+            
+            document.getElementById('live-badge').innerText = 'Ready';
+            document.getElementById('live-badge').className = 'badge';
+            document.getElementById('live-mask').src = '';
+            document.getElementById('live-flat').src = '';
+            document.getElementById('live-overlay').src = '';
+        }
+
         function startLiveProcessing() {
             const processFrame = async () => {
                 if (!isCameraActive) return;
@@ -730,7 +906,7 @@
                     const signal = liveController.signal;
                     
                     try {
-                        const response = await fetch('/api/live', {
+                        const response = await fetch('/api/process-frame', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(params),
